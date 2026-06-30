@@ -1,0 +1,66 @@
+name: Feature request
+description: Propose a focused improvement to system-health.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please describe the user problem before prescribing an implementation. New behavior must preserve the project's read-only report default, explicit maintenance boundary, and privacy model.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What problem would this solve, and for whom?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the desired behavior and command-line interface, if applicable.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Primary area
+      options:
+        - Reporting
+        - Maintenance
+        - Scheduling
+        - Notifications
+        - Configuration
+        - Testing or CI
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety and privacy impact
+      description: Explain any filesystem changes, package mutations, network access, credentials, logs, or personal data involved. Enter "None" when not applicable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe current workarounds or simpler alternatives.
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope confirmation
+      options:
+        - label: This request preserves report mode as read-only apart from documented local logs and backups.
+          required: true
+        - label: I have not included credentials or private workstation data.
+          required: true
