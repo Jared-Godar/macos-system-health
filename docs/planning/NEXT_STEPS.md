@@ -1,6 +1,6 @@
-# Immediate Next Steps
+# Initial publication next steps
 
->20260630
+> Completed 2026-06-30. Current engineering work is tracked in the [issue execution plan](ISSUES.md) and on the [public project board](https://github.com/users/Jared-Godar/projects/3).
 
 - [x] 1. **Review and merge [Dependabot PR #1](https://github.com/Jared-Godar/macos-system-health/pull/1).** It upgrades actions/checkout from v6 to v7, and all checks pass.
 - [x] 2. **Add a branch ruleset for `main` requiring the `quality / checks` status check.**
