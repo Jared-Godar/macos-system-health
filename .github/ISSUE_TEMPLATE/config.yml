@@ -1,5 +1,1 @@
 blank_issues_enabled: false
-contact_links:
-  - name: Report a security vulnerability privately
-    url: https://github.com/Jared-Godar/macos-system-health/security/advisories/new
-    about: Do not disclose credentials, private reports, or workstation identifiers in a public issue.
