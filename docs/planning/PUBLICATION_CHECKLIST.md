@@ -53,4 +53,4 @@ This checklist records the privacy, security, reliability, and release concerns 
 - [x] Run maintenance mode on a backed-up macOS account and verify the documented mutation boundary.
 - [x] Verify LaunchAgent installation, immediate triggering, scheduled logs, removal, and reinstallation using the runbook.
 - [ ] Import or recreate the starter backlog from `docs/planning/trello-import.csv` if it strengthens the portfolio presentation.
-- [ ] Publish release notes and tag `v0.1.0` after all required checks pass.
+- [x] Publish release notes and tag `v0.1.0` after all required checks pass.

@@ -162,4 +162,4 @@ gh run watch (gh run list --limit 1 --json databaseId --jq '.[0].databaseId')
 - [x] Confirm the follow-up quality workflow passes without the original runner annotations.
 - [x] Review and merge the first Dependabot pull request.
 - [x] Protect `main` with an active branch ruleset requiring pull requests and the `checks` status.
-- [ ] Create `v0.1.0` only after the release-readiness checklist is complete.
+- [x] Create `v0.1.0` only after the release-readiness checklist is complete.
