@@ -6,7 +6,7 @@ This checklist documents the process used to review and publish the repository w
 
 ## 1. Authenticate GitHub CLI
 
-- [ ] Reauthenticate the intended GitHub account:
+- [x] Reauthenticate the intended GitHub account:
 
   ```fish
   gh auth logout -h github.com -u Jared-Godar
@@ -18,13 +18,13 @@ The login command opens GitHub in a browser.
 
 ## 2. Confirm the public repository URL
 
-- [ ] Confirm the README clone command uses:
+- [x] Confirm the README clone command uses:
 
   ```text
   https://github.com/Jared-Godar/macos-system-health.git
   ```
 
-- [ ] Run the complete local verification suite:
+- [x] Run the complete local verification suite:
 
   ```fish
   scripts/check --all
@@ -32,7 +32,7 @@ The login command opens GitHub in a browser.
 
 ## 3. Stage and review the public files
 
-- [ ] Stage files and inspect their status:
+- [x] Stage files and inspect their status:
 
   ```fish
   git add .
@@ -46,7 +46,7 @@ The staged list must not contain:
 - `system-health-public.code-workspace`
 - Logs, reports, backups, credentials, or environment files
 
-- [ ] Review exactly what will enter history:
+- [x] Review exactly what will enter history:
 
   ```fish
   git diff --cached --check
@@ -57,7 +57,7 @@ The staged list must not contain:
 
 ## 4. Create the first commit
 
-- [ ] Commit the reviewed snapshot:
+- [x] Commit the reviewed snapshot:
 
   ```fish
   git commit -m "Initial public release"
@@ -65,7 +65,7 @@ The staged list must not contain:
 
 The pre-commit hook automatically runs syntax validation, linting, smoke tests, and secret scanning. Do not bypass it with `--no-verify`.
 
-- [ ] Confirm the commit and working-tree state:
+- [x] Confirm the commit and working-tree state:
 
   ```fish
   git log --oneline --decorate -1
@@ -74,7 +74,7 @@ The pre-commit hook automatically runs syntax validation, linting, smoke tests, 
 
 ## 5. Create and push the public repository
 
-- [ ] Create the repository and push `main`:
+- [x] Create the repository and push `main`:
 
   ```fish
   gh repo create Jared-Godar/macos-system-health \
@@ -85,15 +85,16 @@ The pre-commit hook automatically runs syntax validation, linting, smoke tests, 
       --push
   ```
 
-- [ ] Confirm the remote:
+- [x] Confirm the remote:
 
   ```fish
   git remote -v
+  git status --short
   ```
 
 ## 6. Verify the first CI run
 
-- [ ] List and watch the first workflow run:
+- [x] List and watch the first workflow run:
 
   ```fish
   gh run list --limit 5
@@ -108,16 +109,55 @@ gh run watch (gh run list --limit 1 --json databaseId --jq '.[0].databaseId')
 
 ## 7. Finish the GitHub presentation
 
-- [ ] Open the repository:
+- [x] Open the repository:
 
   ```fish
   gh repo view --web
   ```
 
-- [ ] Add the topics `macos`, `bash`, `homebrew`, `conda`, `system-health`, and `automation`.
-- [ ] Enable secret scanning and push protection.
-- [ ] Enable private vulnerability reporting.
-- [ ] Enable Dependabot alerts and security updates.
+- [x] Add the topics `macos`, `bash`, `homebrew`, `conda`, `system-health`, and `automation`.
+
+  ```fish
+  gh repo edit Jared-Godar/macos-system-health \
+      --add-topic macos \
+      --add-topic bash \
+      --add-topic homebrew \
+      --add-topic conda \
+      --add-topic system-health \
+      --add-topic automation
+  ```
+
+- [x] Verify the topics:
+
+  ```fish
+  gh repo view Jared-Godar/macos-system-health \
+    --json repositoryTopics \
+    --jq '.repositoryTopics[].name'
+  ```
+
+- [x] Open the repository security settings:
+
+  ```fish
+  open https://github.com/Jared-Godar/macos-system-health/settings/security_analysis
+  ```
+
+- [x] Enable or confirm the security controls:
+
+  - [x] Secret scanning
+  - [x] Push protection
+  - [x] Dependabot alerts
+  - [x] Dependabot security updates
+  - [x] Private vulnerability reporting
+  - [x] CodeQL default setup for GitHub Actions
+
+- [x] Confirm GitHub recognizes the MIT license.
+- [x] Enable release immutability.
+- [x] Streamline repository collaboration and merge settings.
 - [ ] Add a privacy-reviewed social preview image.
-- [ ] Confirm GitHub recognizes the MIT license.
-- [ ] Wait for the first CI run to pass before creating the `v0.1.0` release.
+- [x] Wait for the first CI run to pass before creating the `v0.1.0` release.
+
+## 8. Post-publication cleanup
+
+- [ ] Commit and push the reviewed CI and Dependabot improvements.
+- [ ] Confirm the follow-up quality workflow passes without the original runner annotations.
+- [ ] Create `v0.1.0` only after the release-readiness checklist is complete.

@@ -6,11 +6,16 @@ permissions:
   contents: read
 jobs:
   checks:
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+      - name: Remove unused third-party Homebrew tap
+        run: |
+          if brew tap | grep -qx 'aws/tap'; then
+            brew untap aws/tap
+          fi
       - name: Install quality tools
         run: brew install actionlint shellcheck gitleaks
       - name: Lint, test, and scan

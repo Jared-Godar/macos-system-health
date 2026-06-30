@@ -45,10 +45,14 @@ printf '%s\n' 'Scanning for secrets with Gitleaks...'
 require gitleaks
 if [[ "$MODE" == --staged ]]; then
   gitleaks git --pre-commit --redact --staged --verbose
-elif git rev-parse --verify HEAD >/dev/null 2>&1; then
-  gitleaks git --redact --verbose
 else
-  gitleaks dir . --redact --verbose
+  if git rev-parse --verify HEAD >/dev/null 2>&1; then
+    gitleaks git --redact --verbose
+  fi
+  while IFS= read -r -d '' file; do
+    printf '\nFILE: %s\n' "$file"
+    cat "$file"
+  done < <(git ls-files -co --exclude-standard -z) | gitleaks stdin --redact --verbose
 fi
 
 printf '%s\n' 'All checks passed.'

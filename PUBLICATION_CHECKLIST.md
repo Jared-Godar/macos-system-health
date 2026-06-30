@@ -18,24 +18,32 @@ This checklist records the privacy, security, reliability, and release concerns 
 - [x] Confirm `.DS_Store`, private notes, and the local VS Code workspace are ignored.
 - [x] Separate workstation-specific notes from public project documentation.
 - [x] Configure optional email delivery through a read-only 1Password service account without storing credentials in the repository.
+- [x] Add Dependabot version-update configuration for GitHub Actions dependencies.
+- [x] Pin CI to macOS 15, move checkout to Node 24-based `actions/checkout@v6`, and remove the unused runner tap warning.
 
-## Before the first push
+## First publication
 
-- [ ] Stage the intended public files with `git add .`.
-- [ ] Review `git diff --cached`, `git diff --cached --check`, and `git ls-files` before the first commit.
-- [ ] Confirm ignored and private files do not appear in `git ls-files`.
-- [ ] Create the initial commit and confirm the pre-commit quality suite passes against the staged snapshot.
-- [ ] Create the public `jaredgodar/macos-system-health` repository with fresh history and push `main`.
-- [ ] Confirm the first GitHub Actions quality run passes.
+- [x] Stage and review the intended public files.
+- [x] Confirm ignored and private files do not appear in `git ls-files`.
+- [x] Create the initial commit and confirm the pre-commit quality suite passes.
+- [x] Create the public `Jared-Godar/macos-system-health` repository with fresh history and push `main`.
+- [x] Confirm the first GitHub Actions quality run passes.
 
 ## GitHub repository settings
 
-- [ ] Enable secret scanning and push protection.
-- [ ] Enable private vulnerability reporting.
-- [ ] Enable Dependabot alerts and security updates.
-- [ ] Add a repository description and the topics `macos`, `bash`, `homebrew`, `conda`, `system-health`, and `automation`.
-- [ ] Confirm GitHub recognizes the MIT license.
+- [x] Enable secret scanning and push protection.
+- [x] Enable private vulnerability reporting.
+- [x] Enable Dependabot alerts and security updates.
+- [x] Enable CodeQL default setup for GitHub Actions workflow analysis.
+- [x] Add a repository description and the topics `macos`, `bash`, `homebrew`, `conda`, `system-health`, and `automation`.
+- [x] Confirm GitHub recognizes the MIT license.
+- [x] Enable release immutability and streamline repository collaboration settings.
 - [ ] Add a privacy-reviewed social preview image.
+
+## Follow-up publication checks
+
+- [ ] Commit and push the reviewed CI and Dependabot improvements.
+- [ ] Confirm the follow-up quality workflow passes without the original runner annotations.
 
 ## Release readiness
 
