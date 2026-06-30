@@ -24,6 +24,7 @@ LOG_FILE="$LOG_DIR/report-$STAMP.log"
 LOCK_DIR="${TMPDIR:-/tmp}/system-health-${UID}.lock"
 ISSUES=0
 WARNINGS=0
+REDACT_CONDA_BASE=""
 
 if ! [[ "$DISK_THRESHOLD" =~ ^[0-9]+$ ]] || (( DISK_THRESHOLD < 0 || DISK_THRESHOLD > 100 )); then
   echo "SYSTEM_HEALTH_DISK_THRESHOLD must be an integer from 0 through 100." >&2
@@ -39,13 +40,29 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
 fi
 trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
 
+redact_stream() {
+  awk -v home="$HOME" -v conda_base="$REDACT_CONDA_BASE" '
+    function replace_literal(text, needle, replacement, position) {
+      if (needle == "") return text
+      while ((position = index(text, needle)) > 0) {
+        text = substr(text, 1, position - 1) replacement substr(text, position + length(needle))
+      }
+      return text
+    }
+    {
+      line = replace_literal($0, conda_base, "[conda base]")
+      line = replace_literal(line, home, "[home]")
+      print line
+    }
+  '
+}
 log() { printf '%b\n' "$*" | tee -a "$LOG_FILE"; }
-log_output() { [[ -n "$1" ]] && printf '%s\n' "$1" | tee -a "$LOG_FILE"; }
+log_output() { [[ -n "$1" ]] && printf '%s\n' "$1" | redact_stream | tee -a "$LOG_FILE"; }
 section() { log "\n== $* =="; }
 warn() { WARNINGS=$((WARNINGS + 1)); log "WARNING: $*"; }
 fail() { ISSUES=$((ISSUES + 1)); log "ERROR: $*"; }
 have() { command -v "$1" >/dev/null 2>&1; }
-run_logged() { "$@" 2>&1 | tee -a "$LOG_FILE"; return "${PIPESTATUS[0]}"; }
+run_logged() { "$@" 2>&1 | redact_stream | tee -a "$LOG_FILE"; return "${PIPESTATUS[0]}"; }
 capture_output() {
   local variable="$1" output status
   shift
@@ -99,6 +116,7 @@ section "Conda"
 if have conda; then
   CONDA="$(command -v conda)"
   log "Version: $("$CONDA" --version 2>&1)"
+  if ! capture_output REDACT_CONDA_BASE "$CONDA" info --base; then REDACT_CONDA_BASE=""; fi
   if "$CONDA" doctor --help >/dev/null 2>&1; then run_logged "$CONDA" doctor || warn "conda doctor reported a problem."; else warn "conda doctor is unavailable in this Conda version."; fi
   if capture_output CONDA_ENVS "$CONDA" env list; then
     printf '%s\n' "$CONDA_ENVS" | awk '
@@ -109,7 +127,12 @@ if have conda; then
   else
     warn "Could not list Conda environments."
   fi
-  "$CONDA" env export -n base --from-history > "$BACKUP_DIR/conda-base-$STAMP.yml" 2>>"$LOG_FILE" || warn "Could not back up the base environment."
+  if capture_output CONDA_EXPORT "$CONDA" env export -n base --from-history; then
+    printf '%s\n' "$CONDA_EXPORT" > "$BACKUP_DIR/conda-base-$STAMP.yml"
+  else
+    log_output "$CONDA_EXPORT"
+    warn "Could not back up the base environment."
+  fi
   if [[ "$MODE" == maintenance ]]; then run_logged "$CONDA" clean --all --yes || warn "conda clean reported a problem."; fi
 else
   warn "Conda is not installed or not on PATH."
