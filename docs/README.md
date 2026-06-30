@@ -16,3 +16,7 @@
 - [First public GitHub push](planning/FIRST_GITHUB_PUSH.md) — the initial publication workflow.
 - [Next steps](planning/NEXT_STEPS.md) — current project TODOs.
 - [Portfolio backlog import](planning/trello-import.csv) — optional starter board data.
+
+## Project assets
+
+- [Social preview](assets/social-preview.png) — privacy-reviewed 1280×640 repository preview artwork.

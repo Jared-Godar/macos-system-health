@@ -13,4 +13,4 @@
 - Notification providers behind a credential-free interface.
 - Signed release artifacts and documented checksums.
 
-See [trello-import.csv](trello-import.csv) for a portfolio board starter backlog.
+Track current work in the public [v1.0 milestone](https://github.com/Jared-Godar/macos-system-health/milestone/1). The original [Trello import](trello-import.csv) remains as a portable starter backlog.
