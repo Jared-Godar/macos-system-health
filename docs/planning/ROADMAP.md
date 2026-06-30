@@ -13,4 +13,4 @@
 - Notification providers behind a credential-free interface.
 - Signed release artifacts and documented checksums.
 
-Track current work in the public [v1.0 milestone](https://github.com/Jared-Godar/macos-system-health/milestone/1). The original [Trello import](trello-import.csv) remains as a portable starter backlog.
+Track current work on the public [macOS System Health Roadmap](https://github.com/users/Jared-Godar/projects/3) and in the [v1.0 milestone](https://github.com/Jared-Godar/macos-system-health/milestone/1). The original [Trello import](trello-import.csv) remains as a portable starter backlog.
