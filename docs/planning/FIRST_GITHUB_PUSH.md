@@ -153,7 +153,7 @@ gh run watch (gh run list --limit 1 --json databaseId --jq '.[0].databaseId')
 - [x] Confirm GitHub recognizes the MIT license.
 - [x] Enable release immutability.
 - [x] Streamline repository collaboration and merge settings.
-- [ ] Add a privacy-reviewed social preview image.
+- [x] Add a privacy-reviewed social preview image.
 - [x] Wait for the first CI run to pass before creating the `v0.1.0` release.
 
 ## 8. Post-publication cleanup

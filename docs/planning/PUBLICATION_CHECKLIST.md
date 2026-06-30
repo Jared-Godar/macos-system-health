@@ -39,7 +39,7 @@ This checklist records the privacy, security, reliability, and release concerns 
 - [x] Confirm GitHub recognizes the MIT license.
 - [x] Enable release immutability and streamline repository collaboration settings.
 - [x] Protect `main` with pull requests, linear history, force-push and deletion blocking, and the required `checks` status.
-- [ ] Add a privacy-reviewed social preview image.
+- [x] Add a privacy-reviewed social preview image.
 
 ## Follow-up publication checks
 
