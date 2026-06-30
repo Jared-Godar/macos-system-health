@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+MODE="${1:-report}"
+case "$MODE" in report|maintenance) ;; *) echo "Usage: $0 [report|maintenance]" >&2; exit 64 ;; esac
+
+# LaunchAgents start with a minimal PATH. Keep caller-provided commands first so
+# tests and deliberate overrides remain possible, then add common macOS paths.
+export PATH="$PATH:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/local/sbin:$HOME/miniforge3/bin:$HOME/anaconda3/bin:/opt/homebrew/Caskroom/miniforge/base/bin"
+
+LOG_DIR="${SYSTEM_HEALTH_LOG_DIR:-$HOME/Library/Logs/system-health}"
+BACKUP_DIR="${SYSTEM_HEALTH_BACKUP_DIR:-$HOME/Library/Application Support/system-health/backups}"
+EMAIL_CONFIG="$HOME/.config/system-health/recipient"
+if [[ -n "${SYSTEM_HEALTH_EMAIL+x}" ]]; then
+  MAIL_TO="$SYSTEM_HEALTH_EMAIL"
+elif [[ -r "$EMAIL_CONFIG" ]]; then
+  IFS= read -r MAIL_TO < "$EMAIL_CONFIG"
+else
+  MAIL_TO=""
+fi
+DISK_THRESHOLD="${SYSTEM_HEALTH_DISK_THRESHOLD:-85}"
+STAMP="$(date '+%Y%m%d-%H%M%S')"
+LOG_FILE="$LOG_DIR/report-$STAMP.log"
+LOCK_DIR="${TMPDIR:-/tmp}/system-health-${UID}.lock"
+ISSUES=0
+WARNINGS=0
+
+if ! [[ "$DISK_THRESHOLD" =~ ^[0-9]+$ ]] || (( DISK_THRESHOLD < 0 || DISK_THRESHOLD > 100 )); then
+  echo "SYSTEM_HEALTH_DISK_THRESHOLD must be an integer from 0 through 100." >&2
+  exit 64
+fi
+case "$MAIL_TO" in *$'\n'*|*$'\r'*) echo "SYSTEM_HEALTH_EMAIL must not contain line breaks." >&2; exit 64 ;; esac
+
+umask 077
+mkdir -p "$LOG_DIR" "$BACKUP_DIR"
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  echo "Another system-health run appears active." >&2
+  exit 75
+fi
+trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
+
+log() { printf '%b\n' "$*" | tee -a "$LOG_FILE"; }
+log_output() { [[ -n "$1" ]] && printf '%s\n' "$1" | tee -a "$LOG_FILE"; }
+section() { log "\n== $* =="; }
+warn() { WARNINGS=$((WARNINGS + 1)); log "WARNING: $*"; }
+fail() { ISSUES=$((ISSUES + 1)); log "ERROR: $*"; }
+have() { command -v "$1" >/dev/null 2>&1; }
+run_logged() { "$@" 2>&1 | tee -a "$LOG_FILE"; return "${PIPESTATUS[0]}"; }
+capture_output() {
+  local variable="$1" output status
+  shift
+  output="$("$@" 2>&1)"
+  status=$?
+  printf -v "$variable" '%s' "$output"
+  return "$status"
+}
+
+log "System Health Report"
+log "Started: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+log "Mode: $MODE"
+
+section "System"
+if have sw_vers; then run_logged sw_vers || warn "Could not read macOS version."; fi
+log "Architecture: $(uname -m)"
+DISK_PERCENT="$(df -Pk / | awk 'NR==2 {gsub(/%/, "", $5); print $5}')"
+log "Root disk used: ${DISK_PERCENT:-unknown}%"
+if [[ "$DISK_PERCENT" =~ ^[0-9]+$ ]] && (( DISK_PERCENT >= DISK_THRESHOLD )); then
+  warn "Root disk usage is at or above ${DISK_THRESHOLD}%."
+fi
+
+section "Homebrew"
+if have brew; then
+  BREW="$(command -v brew)"
+  log "Version: $("$BREW" --version | head -n 1)"
+  export HOMEBREW_NO_AUTO_UPDATE=1
+  if capture_output DOCTOR "$BREW" doctor; then
+    log_output "$DOCTOR"
+  else
+    log_output "$DOCTOR"
+    warn "Homebrew doctor reported a problem."
+  fi
+  if capture_output OUTDATED "$BREW" outdated; then
+    if [[ -n "$OUTDATED" ]]; then log_output "$OUTDATED"; warn "Homebrew packages are outdated."; else log "No outdated Homebrew packages."; fi
+  else
+    log_output "$OUTDATED"
+    warn "Could not check outdated Homebrew packages."
+  fi
+  if [[ "$MODE" == maintenance ]]; then
+    run_logged "$BREW" update || fail "brew update failed."
+    run_logged "$BREW" upgrade || fail "brew upgrade failed."
+    run_logged "$BREW" cleanup || warn "brew cleanup reported a problem."
+  fi
+  run_logged "$BREW" bundle dump --file="$BACKUP_DIR/Brewfile-$STAMP" --force || warn "Could not create Brewfile backup."
+else
+  warn "Homebrew is not installed or not on PATH."
+fi
+
+section "Conda"
+if have conda; then
+  CONDA="$(command -v conda)"
+  log "Version: $("$CONDA" --version 2>&1)"
+  if "$CONDA" doctor --help >/dev/null 2>&1; then run_logged "$CONDA" doctor || warn "conda doctor reported a problem."; else warn "conda doctor is unavailable in this Conda version."; fi
+  if capture_output CONDA_ENVS "$CONDA" env list; then
+    printf '%s\n' "$CONDA_ENVS" | awk '
+      /^#/ || NF == 0 { next }
+      $1 ~ /^\// { print "[unnamed environment]"; next }
+      { print $1 (($2 == "*") ? " *" : "") }
+    ' | tee -a "$LOG_FILE"
+  else
+    warn "Could not list Conda environments."
+  fi
+  "$CONDA" env export -n base --from-history > "$BACKUP_DIR/conda-base-$STAMP.yml" 2>>"$LOG_FILE" || warn "Could not back up the base environment."
+  if [[ "$MODE" == maintenance ]]; then run_logged "$CONDA" clean --all --yes || warn "conda clean reported a problem."; fi
+else
+  warn "Conda is not installed or not on PATH."
+fi
+
+section "Python"
+if have python3; then
+  PYTHON="$(command -v python3)"
+  log "Version: $("$PYTHON" --version 2>&1)"
+  run_logged "$PYTHON" -m pip check || warn "pip found dependency conflicts."
+  if capture_output PIP_OUTDATED "$PYTHON" -m pip list --outdated --format=columns; then
+    if [[ "$PIP_OUTDATED" == *"Package"* && "$PIP_OUTDATED" == *"Latest"* ]]; then log_output "$PIP_OUTDATED"; warn "Python packages are outdated."; else log "No outdated Python packages detected."; fi
+  else
+    log_output "$PIP_OUTDATED"
+    warn "Could not check outdated Python packages."
+  fi
+else
+  warn "python3 is not installed or not on PATH."
+fi
+
+if [[ -n "$MAIL_TO" ]]; then
+  if have msmtp; then
+    { printf 'To: %s\nSubject: System health: %s issue(s), %s warning(s)\n\n' "$MAIL_TO" "$ISSUES" "$WARNINGS"; cat "$LOG_FILE"; printf '\nIssues: %s; warnings: %s\n' "$ISSUES" "$WARNINGS"; } | msmtp -- "$MAIL_TO" || warn "Email delivery failed."
+  else
+    warn "SYSTEM_HEALTH_EMAIL is set, but msmtp is unavailable."
+  fi
+fi
+
+section "Summary"
+log "Issues: $ISSUES; warnings: $WARNINGS"
+log "Finished: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+
+(( ISSUES > 0 )) && exit 1
+exit 0

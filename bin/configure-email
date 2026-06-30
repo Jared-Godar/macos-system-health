@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -ne 2 ]]; then
+  echo "Usage: $0 RECIPIENT OP_SECRET_REFERENCE" >&2
+  exit 64
+fi
+
+RECIPIENT="$1"
+OP_REFERENCE="$2"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TOKEN_FILE="$HOME/.config/op/service-account-token"
+HELPER_DIR="$HOME/.config/system-health"
+HELPER="$HELPER_DIR/msmtp-password"
+RECIPIENT_FILE="$HELPER_DIR/recipient"
+MSMTP_CONFIG="$HOME/.msmtprc"
+TMP_CONFIG="$MSMTP_CONFIG.tmp.$$"
+STAMP="$(date '+%Y%m%d-%H%M%S')"
+
+case "$RECIPIENT" in *@*.*) ;; *) echo "Recipient does not look like an email address." >&2; exit 64 ;; esac
+case "$RECIPIENT" in *$'\n'*|*$'\r'*) echo "Recipient must not contain line breaks." >&2; exit 64 ;; esac
+case "$OP_REFERENCE" in op://*) ;; *) echo "Secret reference must begin with op://." >&2; exit 64 ;; esac
+case "$OP_REFERENCE" in *$'\n'*|*$'\r'*|*\'*) echo "Secret reference contains unsupported characters." >&2; exit 64 ;; esac
+
+[[ -x /opt/homebrew/bin/op ]] || { echo "1Password CLI was not found at /opt/homebrew/bin/op." >&2; exit 69; }
+[[ -x /opt/homebrew/bin/msmtp ]] || { echo "msmtp was not found at /opt/homebrew/bin/msmtp." >&2; exit 69; }
+[[ -r "$TOKEN_FILE" ]] || { echo "Missing service-account token file: $TOKEN_FILE" >&2; exit 66; }
+[[ -f "$MSMTP_CONFIG" ]] || { echo "Missing msmtp configuration: $MSMTP_CONFIG" >&2; exit 66; }
+
+umask 077
+mkdir -p "$HELPER_DIR"
+printf '%s\n' "$RECIPIENT" > "$RECIPIENT_FILE"
+chmod 600 "$RECIPIENT_FILE"
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'set -euo pipefail' \
+  "TOKEN_FILE=\"\$HOME/.config/op/service-account-token\"" \
+  "export OP_SERVICE_ACCOUNT_TOKEN=\"\$(< \"\$TOKEN_FILE\")\"" \
+  "exec /opt/homebrew/bin/op read '$OP_REFERENCE'" \
+  > "$HELPER"
+chmod 700 "$HELPER"
+
+"$HELPER" >/dev/null
+
+cp -p "$MSMTP_CONFIG" "$MSMTP_CONFIG.backup.$STAMP"
+awk -v replacement="passwordeval \"$HELPER\"" '
+  BEGIN { replaced = 0 }
+  /^[[:space:]]*passwordeval[[:space:]]/ { print replacement; replaced = 1; next }
+  { print }
+  END { if (!replaced) print replacement }
+' "$MSMTP_CONFIG" > "$TMP_CONFIG"
+chmod 600 "$TMP_CONFIG"
+mv "$TMP_CONFIG" "$MSMTP_CONFIG"
+
+SYSTEM_HEALTH_EMAIL="$RECIPIENT" "$SCRIPT_DIR/install-schedule"
+
+printf 'To: %s\nSubject: system-health email configuration test\n\nEmail delivery is configured for system-health reports.\n' "$RECIPIENT" \
+  | /opt/homebrew/bin/msmtp -- "$RECIPIENT"
+
+printf 'Email configured for local and scheduled reports to %s.\n' "$RECIPIENT"

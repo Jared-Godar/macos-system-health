@@ -1,0 +1,10 @@
+Name,Description,List
+Define v1.0 acceptance criteria,"Document supported macOS, Bash, Homebrew, Conda, and Python versions.",Backlog
+Add command stubs and smoke tests,"Test report and maintenance boundaries without changing the host.",Next up
+Test Apple Silicon host,"Capture redacted results and resolve compatibility issues.",Next up
+Test Intel host,"Validate PATH discovery and scheduler behavior.",Backlog
+Add log retention,"Implement age/count limits without deleting unrelated files.",Backlog
+Add JSON output,"Create a stable machine-readable schema.",Ideas
+Enable repository security settings,"Turn on secret scanning, push protection, Dependabot, and private reporting.",Release checklist
+Run publication privacy review,"Review tracked files, commit history, screenshots, and issue templates.",Release checklist
+Prepare v0.1.0 release,"Write release notes and attach checksums if artifacts are published.",Release checklist

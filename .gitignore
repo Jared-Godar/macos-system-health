@@ -1,0 +1,71 @@
+# macOS and filesystem metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Editors and IDEs
+.vscode/
+.idea/
+*.code-workspace
+*.swp
+*.swo
+*~
+
+# Local environment configuration
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+.envrc
+.direnv/
+mise.local.toml
+
+# Python environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secrets, credentials, and private keys
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+.secrets/
+secrets/
+credentials/
+credentials.json
+service-account*.json
+!credentials.example.json
+!service-account.example.json
+
+# Generated logs, reports, backups, and runtime state
+*.log
+system-health-backups/
+reports/
+backups/
+*.lock
+*.pid
+
+# Local notes and scratch files
+private-notes/
+.cache/
+tmp/
+temp/
+
+# Test and coverage artifacts
+coverage/
+test-results/
+*.tap

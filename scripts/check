@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+MODE="${1:---all}"
+case "$MODE" in --all|--staged) ;; *) echo "Usage: $0 [--all|--staged]" >&2; exit 64 ;; esac
+
+require() {
+  command -v "$1" >/dev/null 2>&1 || {
+    printf 'Missing required tool: %s\n' "$1" >&2
+    printf 'On macOS, install it with: brew install %s\n' "$1" >&2
+    exit 69
+  }
+}
+
+SHELL_FILES=(bin/system-health bin/install-schedule bin/configure-email scripts/check scripts/install-hooks tests/smoke.sh .githooks/pre-commit)
+
+printf '%s\n' 'Checking staged whitespace errors...'
+git diff --cached --check
+if [[ "$MODE" == --all ]]; then
+  git diff --check
+  if git rev-parse --verify HEAD >/dev/null 2>&1; then git show --check --format= HEAD; fi
+fi
+printf '%s\n' 'Checking Bash syntax...'
+bash -n "${SHELL_FILES[@]}"
+printf '%s\n' 'Running ShellCheck...'
+require shellcheck
+shellcheck "${SHELL_FILES[@]}"
+
+printf '%s\n' 'Linting GitHub Actions workflows...'
+require actionlint
+actionlint
+
+if command -v plutil >/dev/null 2>&1; then
+  printf '%s\n' 'Validating LaunchAgent template...'
+  plutil -lint config/io.github.system-health.report.plist.template
+fi
+
+printf '%s\n' 'Running smoke tests...'
+tests/smoke.sh
+
+printf '%s\n' 'Scanning for secrets with Gitleaks...'
+require gitleaks
+if [[ "$MODE" == --staged ]]; then
+  gitleaks git --pre-commit --redact --staged --verbose
+elif git rev-parse --verify HEAD >/dev/null 2>&1; then
+  gitleaks git --redact --verbose
+else
+  gitleaks dir . --redact --verbose
+fi
+
+printf '%s\n' 'All checks passed.'

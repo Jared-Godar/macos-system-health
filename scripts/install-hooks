@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+git config core.hooksPath .githooks
+printf '%s\n' 'Installed repository hooks. Every commit will run scripts/check --staged.'

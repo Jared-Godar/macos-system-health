@@ -1,0 +1,17 @@
+name: quality
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install quality tools
+        run: brew install actionlint shellcheck gitleaks
+      - name: Lint, test, and scan
+        run: scripts/check --all
