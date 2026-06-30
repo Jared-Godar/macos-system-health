@@ -16,3 +16,8 @@
 - [First public GitHub push](planning/FIRST_GITHUB_PUSH.md) — the initial publication workflow.
 - [Next steps](planning/NEXT_STEPS.md) — current project TODOs.
 - [Portfolio backlog import](planning/trello-import.csv) — optional starter board data.
+- [Public project board](https://github.com/users/Jared-Godar/projects/3) — active engineering backlog toward v1.0.
+
+## Project assets
+
+- [Social preview](assets/social-preview.png) — privacy-reviewed 1280×640 repository preview artwork.

@@ -39,7 +39,7 @@ This checklist records the privacy, security, reliability, and release concerns 
 - [x] Confirm GitHub recognizes the MIT license.
 - [x] Enable release immutability and streamline repository collaboration settings.
 - [x] Protect `main` with pull requests, linear history, force-push and deletion blocking, and the required `checks` status.
-- [ ] Add a privacy-reviewed social preview image.
+- [x] Add a privacy-reviewed social preview image.
 
 ## Follow-up publication checks
 
@@ -52,5 +52,5 @@ This checklist records the privacy, security, reliability, and release concerns 
 - [x] Run report mode on a backed-up macOS account and inspect the generated and emailed reports for private data.
 - [x] Run maintenance mode on a backed-up macOS account and verify the documented mutation boundary.
 - [x] Verify LaunchAgent installation, immediate triggering, scheduled logs, removal, and reinstallation using the runbook.
-- [ ] Import or recreate the starter backlog from `docs/planning/trello-import.csv` if it strengthens the portfolio presentation.
+- [x] Recreate the starter backlog as scoped public issues under the GitHub `v1.0` milestone.
 - [x] Publish release notes and tag `v0.1.0` after all required checks pass.
