@@ -38,12 +38,14 @@ This checklist records the privacy, security, reliability, and release concerns 
 - [x] Add a repository description and the topics `macos`, `bash`, `homebrew`, `conda`, `system-health`, and `automation`.
 - [x] Confirm GitHub recognizes the MIT license.
 - [x] Enable release immutability and streamline repository collaboration settings.
+- [x] Protect `main` with pull requests, linear history, force-push and deletion blocking, and the required `checks` status.
 - [ ] Add a privacy-reviewed social preview image.
 
 ## Follow-up publication checks
 
-- [ ] Commit and push the reviewed CI and Dependabot improvements.
-- [ ] Confirm the follow-up quality workflow passes without the original runner annotations.
+- [x] Commit and push the reviewed CI and Dependabot improvements.
+- [x] Confirm the follow-up quality workflow passes without the original runner annotations.
+- [x] Review and merge the first Dependabot update through a passing pull request.
 
 ## Release readiness
 
