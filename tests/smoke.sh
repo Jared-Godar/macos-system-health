@@ -27,7 +27,7 @@ STUB
 printf 'brew %s\n' "$*" >> "$CALL_LOG"
 case "${1:-}" in
   --version) echo 'Homebrew 4.0.0' ;;
-  doctor) echo 'Your system is ready to brew.' ;;
+  doctor) printf 'Your system is ready to brew.\nCache: %s/Library/Caches/Homebrew\n' "$HOME" ;;
   outdated)
     if [[ "${FAIL_BREW_OUTDATED:-0}" == 1 ]]; then echo 'network unavailable' >&2; exit 1; fi
     ;;
@@ -45,8 +45,9 @@ STUB
 printf 'conda %s\n' "$*" >> "$CALL_LOG"
 case "$*" in
   '--version') echo 'conda 25.1.0' ;;
+  'info --base') echo '/Users/private/miniforge3' ;;
   'doctor --help') exit 0 ;;
-  'doctor') echo 'Environment Health Report: OK' ;;
+  'doctor') printf 'Environment Health Report for: /Users/private/miniforge3\nNo pinned specs in /Users/private/miniforge3/conda-meta/pinned.\n' ;;
   'env list')
     printf '# conda environments:\nbase * /Users/private/miniforge3\nproject /Users/private/work/project\n/Users/private/unnamed\n'
     ;;
@@ -95,6 +96,9 @@ test_report_boundary() {
   assert_not_contains "$case_dir/calls.log" 'brew cleanup'
   assert_not_contains "$case_dir/calls.log" 'conda clean --all --yes'
   assert_not_contains "$case_dir/output" '/Users/private'
+  assert_not_contains "$case_dir/output" "$case_dir/home"
+  assert_contains "$case_dir/output" '[conda base]'
+  assert_contains "$case_dir/output" '[home]/Library/Caches/Homebrew'
   assert_contains "$case_dir/output" 'project'
   assert_contains "$case_dir/output" '[unnamed environment]'
 }

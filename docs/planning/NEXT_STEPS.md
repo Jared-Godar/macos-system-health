@@ -34,11 +34,31 @@
   - [x] Remove “Add automated smoke tests” from `docs/planning/ROADMAP.md`.
 
 - [ ] 4. **Complete and document one live integration cycle:**
-  - [ ] Report mode
+  - [x] Report mode
   - [ ] Maintenance mode
   - [ ] LaunchAgent installation
   - [ ] Immediate scheduled trigger
-  - [ ] Email delivery
+  - [x] Email delivery
   - [ ] LaunchAgent removal/reinstallation
 
 - [ ] 5. **Publish v0.1.0 once that integration cycle is confirmed.**
+
+---
+
+## Live Test Results
+
+- [x] Run report mode successfully with zero issues and one expected outdated-package warning.
+- [x] Confirm local report permissions are owner-only.
+- [x] Confirm report email delivery.
+- [x] Identify a privacy gap where `conda doctor` printed an absolute Conda installation path.
+- [x] Create the privacy-fix branch:
+
+  ```fish
+  git switch -c fix/redact-report-paths
+  ```
+
+- [x] Centralize home-directory and Conda-base path redaction for logged and emailed command output.
+- [x] Add regression coverage reproducing both path leaks.
+- [x] Confirm the retest log contains `[conda base]` and no personal path indicators.
+- [x] Confirm the emailed retest report contains `[conda base]` rather than the absolute path.
+- [ ] Merge the privacy fix before proceeding to maintenance mode.

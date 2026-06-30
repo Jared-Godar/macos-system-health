@@ -16,3 +16,4 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 - Removed embedded recipient addresses, workstation paths, hardware serial collection, and secret-bearing notes.
 - Restricted generated log and backup permissions with `umask 077`.
+- Redacted home-directory and Conda-base paths from logged and emailed command output.
