@@ -42,4 +42,4 @@ The parent working tree contained what appeared to be a Google app password in a
 
 ## Release decision
 
-The exposed app password has been revoked. Complete the remaining [publication checklist](PUBLICATION_CHECKLIST.md) before publishing this standalone repository with its fresh history.
+The exposed app password has been revoked. Complete the remaining [publication checklist](../planning/PUBLICATION_CHECKLIST.md) before publishing this standalone repository with its fresh history.
