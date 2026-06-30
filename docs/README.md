@@ -12,10 +12,11 @@
 
 - [v0.1.0 release notes](releases/v0.1.0.md) — initial public release features and validation.
 - [Roadmap](planning/ROADMAP.md) — planned engineering improvements.
+- [Issue execution plan](planning/ISSUES.md) — dependency order, milestone scope, and delivery rules for active issues.
 - [Publication checklist](planning/PUBLICATION_CHECKLIST.md) — concerns reviewed before and after publication.
 - [First public GitHub push](planning/FIRST_GITHUB_PUSH.md) — the initial publication workflow.
-- [Next steps](planning/NEXT_STEPS.md) — current project TODOs.
-- [Portfolio backlog import](planning/trello-import.csv) — optional starter board data.
+- [Initial next steps](planning/NEXT_STEPS.md) — completed publication and live-integration record.
+- [Portfolio backlog import](planning/trello-import.csv) — historical portable starter-board data.
 - [Public project board](https://github.com/users/Jared-Godar/projects/3) — active engineering backlog toward v1.0.
 
 ## Project assets
