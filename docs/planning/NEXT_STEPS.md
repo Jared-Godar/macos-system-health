@@ -33,13 +33,13 @@
   - [x] Mark post-publication cleanup complete in `docs/planning/FIRST_GITHUB_PUSH.md`.
   - [x] Remove “Add automated smoke tests” from `docs/planning/ROADMAP.md`.
 
-- [ ] 4. **Complete and document one live integration cycle:**
+- [x] 4. **Complete and document one live integration cycle:**
   - [x] Report mode
-  - [ ] Maintenance mode
-  - [ ] LaunchAgent installation
-  - [ ] Immediate scheduled trigger
+  - [x] Maintenance mode
+  - [x] LaunchAgent installation
+  - [x] Immediate scheduled trigger
   - [x] Email delivery
-  - [ ] LaunchAgent removal/reinstallation
+  - [x] LaunchAgent removal/reinstallation
 
 - [ ] 5. **Publish v0.1.0 once that integration cycle is confirmed.**
 
@@ -61,4 +61,9 @@
 - [x] Add regression coverage reproducing both path leaks.
 - [x] Confirm the retest log contains `[conda base]` and no personal path indicators.
 - [x] Confirm the emailed retest report contains `[conda base]` rather than the absolute path.
-- [ ] Merge the privacy fix before proceeding to maintenance mode.
+- [x] Merge the privacy fix before proceeding to maintenance mode.
+- [x] Run maintenance mode successfully with zero issues and one expected outdated-package warning.
+- [x] Confirm the maintenance log and email contain redacted paths and no personal path indicators.
+- [x] Install the weekly report-only LaunchAgent and trigger it immediately.
+- [x] Confirm the scheduled report exits successfully, remains in report mode, and preserves private log permissions and path redaction.
+- [x] Remove and reinstall the LaunchAgent successfully using the documented runbook procedure.

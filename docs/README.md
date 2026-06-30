@@ -10,6 +10,7 @@
 
 ## Planning and release history
 
+- [v0.1.0 release notes](releases/v0.1.0.md) — initial public release features and validation.
 - [Roadmap](planning/ROADMAP.md) — planned engineering improvements.
 - [Publication checklist](planning/PUBLICATION_CHECKLIST.md) — concerns reviewed before and after publication.
 - [First public GitHub push](planning/FIRST_GITHUB_PUSH.md) — the initial publication workflow.
