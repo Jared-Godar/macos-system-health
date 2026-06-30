@@ -58,7 +58,7 @@ The helper stores no password in the repository or `msmtp` configuration. It rec
 
 ## Scheduling
 
-`bin/install-schedule` installs a user LaunchAgent for a report every Monday at 7:00 a.m. It schedules report mode only. See [RUNBOOK.md](RUNBOOK.md) for install, verification, recovery, and removal procedures.
+`bin/install-schedule` installs a user LaunchAgent for a report every Monday at 7:00 a.m. It schedules report mode only. See the [operations runbook](docs/operations/RUNBOOK.md) for install, verification, recovery, and removal procedures.
 
 ## Safety model
 
@@ -70,9 +70,9 @@ The helper stores no password in the repository or `msmtp` configuration. It rec
 
 ## Project status
 
-This is an early portfolio release. See [CHANGELOG.md](CHANGELOG.md), [ROADMAP.md](ROADMAP.md), [SECURITY.md](SECURITY.md), the [security audit](SECURITY-AUDIT.md), and the [publication checklist](PUBLICATION_CHECKLIST.md).
+This is an early portfolio release. See [CHANGELOG.md](CHANGELOG.md), the [roadmap](docs/planning/ROADMAP.md), [SECURITY.md](SECURITY.md), the [security audit](docs/security/SECURITY-AUDIT.md), and the [publication checklist](docs/planning/PUBLICATION_CHECKLIST.md).
 
-The documented first-publication workflow is available in [docs/FIRST_GITHUB_PUSH.md](docs/FIRST_GITHUB_PUSH.md).
+Browse the [documentation index](docs/README.md), including the documented [first-publication workflow](docs/planning/FIRST_GITHUB_PUSH.md).
 
 ## Development checks
 

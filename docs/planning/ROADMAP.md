@@ -14,4 +14,4 @@
 - Notification providers behind a credential-free interface.
 - Signed release artifacts and documented checksums.
 
-See [docs/trello-import.csv](docs/trello-import.csv) for a portfolio board starter backlog.
+See [trello-import.csv](trello-import.csv) for a portfolio board starter backlog.

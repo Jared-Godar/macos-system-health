@@ -50,6 +50,7 @@ else
     gitleaks git --redact --verbose
   fi
   while IFS= read -r -d '' file; do
+    [[ -f "$file" ]] || continue
     printf '\nFILE: %s\n' "$file"
     cat "$file"
   done < <(git ls-files -co --exclude-standard -z) | gitleaks stdin --redact --verbose
