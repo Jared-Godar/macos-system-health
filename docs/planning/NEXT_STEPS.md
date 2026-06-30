@@ -41,7 +41,7 @@
   - [x] Email delivery
   - [x] LaunchAgent removal/reinstallation
 
-- [ ] 5. **Publish v0.1.0 once that integration cycle is confirmed.**
+- [x] 5. **Publish v0.1.0 once that integration cycle is confirmed.**
 
 ---
 
