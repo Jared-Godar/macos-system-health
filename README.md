@@ -67,6 +67,7 @@ The helper stores no password in the repository or `msmtp` configuration. It rec
 - A per-user lock prevents overlapping runs.
 - `umask 077` limits new logs and backups to the current user.
 - Commands are resolved from `PATH`; no username or package-manager prefix is hard-coded.
+- Private paths are redacted from all report output: the home directory and the Conda base are rewritten to `[home]` and `[conda base]` before anything is logged or emailed. The redaction case in `tests/smoke.sh` (`test_report_boundary_and_redaction`) asserts they never appear.
 
 ## Project status
 
