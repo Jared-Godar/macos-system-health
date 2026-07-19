@@ -85,7 +85,7 @@ run_health() {
     "$ROOT/bin/system-health" "$mode" > "$case_dir/output" 2>&1
 }
 
-test_report_boundary() {
+test_report_boundary_and_redaction() {
   local case_dir="$TMP_ROOT/report"
   mkdir -p "$case_dir/home" "$case_dir/tmp"
   make_stubs "$case_dir/stubs"
@@ -95,6 +95,9 @@ test_report_boundary() {
   assert_not_contains "$case_dir/calls.log" 'brew upgrade'
   assert_not_contains "$case_dir/calls.log" 'brew cleanup'
   assert_not_contains "$case_dir/calls.log" 'conda clean --all --yes'
+  # Redaction guarantee: private paths are absent from report output — the
+  # stubbed Conda base (/Users/private/...) and the mocked HOME are replaced
+  # with [conda base]/[home] and never appear verbatim.
   assert_not_contains "$case_dir/output" '/Users/private'
   assert_not_contains "$case_dir/output" "$case_dir/home"
   assert_contains "$case_dir/output" '[conda base]'
@@ -155,7 +158,7 @@ run_test() {
   if "$name"; then pass "$name"; else fail "$name"; fi
 }
 
-run_test test_report_boundary
+run_test test_report_boundary_and_redaction
 run_test test_maintenance_boundary
 run_test test_failed_check_is_not_outdated
 run_test test_invalid_threshold
