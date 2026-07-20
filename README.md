@@ -73,6 +73,8 @@ The helper stores no password in the repository or `msmtp` configuration. It rec
 
 This is an early portfolio release. See [CHANGELOG.md](CHANGELOG.md), the [roadmap](docs/planning/ROADMAP.md), the [issue execution plan](docs/planning/ISSUES.md), [SECURITY.md](SECURITY.md), the [security audit](docs/security/SECURITY-AUDIT.md), and the [publication checklist](docs/planning/PUBLICATION_CHECKLIST.md).
 
+For v1.0 requirements, see the [v1.0 acceptance criteria](docs/v1.0-acceptance.md).
+
 Browse the [documentation index](docs/README.md), including the documented [first-publication workflow](docs/planning/FIRST_GITHUB_PUSH.md).
 
 ## Development checks
