@@ -1,0 +1,76 @@
+name: Full-history secret scan
+
+# Recurring full-history secret scan (issue #20). The `quality` workflow
+# (lint.yml) already runs `scripts/check --all` -- including a real
+# `gitleaks git` history scan -- on every push and pull request, with
+# fetch-depth: 0 checkout. That gives good coverage while the repo is
+# active, but it is event-driven: a newly published Gitleaks rule, or a
+# secret predating the current ruleset, is only caught the next time
+# someone pushes. This workflow adds the missing recurring layer: the same
+# checks, including the same Gitleaks invocation via `scripts/check`, run
+# on a weekly schedule and on demand via workflow_dispatch, independent of
+# code changes.
+on:
+  schedule:
+    # Monday 06:00 UTC — low-traffic hour.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full-history-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: Full-history secret scan
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - name: Check out complete history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Report history depth
+        # Makes full-history coverage verifiable at a glance in the run log.
+        run: |
+          echo "Commits reachable from all refs: $(git rev-list --all --count)"
+
+      - name: Remove unused third-party Homebrew tap
+        run: |
+          if brew tap | grep -qx 'aws/tap'; then
+            brew untap aws/tap
+          fi
+
+      - name: Install quality tools
+        run: |
+          set -euo pipefail
+          # Defensive external call: brew install pulls from the network
+          # (bottles + the core tap). Retry a bounded number of times with
+          # backoff on failure -- brew install is idempotent, so a retry
+          # after a transient network blip is safe -- and fail with a clear
+          # external-condition message on exhaustion rather than a raw
+          # brew error.
+          attempt=1
+          max_attempts=4
+          until brew install actionlint shellcheck gitleaks; do
+            if (( attempt >= max_attempts )); then
+              echo "::error::Could not install actionlint/shellcheck/gitleaks via Homebrew after ${max_attempts} attempts — this is an external/connectivity condition (Homebrew bottle or tap fetch), not a repository or setup defect. Re-run the workflow; if it persists, check Homebrew's status." >&2
+              exit 1
+            fi
+            wait=$(( attempt * 15 ))
+            echo "brew install failed (attempt ${attempt}/${max_attempts}); retrying in ${wait}s..." >&2
+            sleep "$wait"
+            attempt=$(( attempt + 1 ))
+          done
+
+      - name: Lint, test, and scan (reuses scripts/check's Gitleaks path)
+        # Same command the per-push `quality` workflow and the local
+        # pre-commit hook run -- including `gitleaks git --redact --verbose`
+        # over the full history just checked out. Never weaken this: a
+        # finding fails the run (scripts/check runs under `set -euo
+        # pipefail` and Gitleaks' own non-zero exit on findings propagates).
+        run: scripts/check --all

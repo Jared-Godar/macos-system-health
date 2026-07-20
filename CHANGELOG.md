@@ -4,6 +4,15 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## [Unreleased]
 
+### Added
+
+- A recurring `full-history-scan.yml` CI workflow: runs the same
+  `scripts/check --all` command (including the `gitleaks git` history scan)
+  on a weekly schedule and via `workflow_dispatch`, independent of pushes or
+  pull requests, so a newly published Gitleaks rule or a secret predating
+  the current ruleset is caught on a recurring cadence rather than only on
+  the next code change (#20).
+
 ## [0.1.0] - 2026-06-30
 
 ### Added
