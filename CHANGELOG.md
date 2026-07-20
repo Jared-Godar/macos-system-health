@@ -14,6 +14,10 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
   the current ruleset is caught on a recurring cadence rather than only on
   the next code change (#20).
 
+### Changed
+
+- Governance: Enable branch protection on main; require status checks before merge (#23).
+
 ## [0.1.0] - 2026-06-30
 
 ### Added
