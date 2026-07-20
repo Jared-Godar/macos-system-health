@@ -6,6 +6,7 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Added
 
+- Docs: v1.0 acceptance criteria document with platform matrix and success metrics (#6).
 - A recurring `full-history-scan.yml` CI workflow: runs the same
   `scripts/check --all` command (including the `gitleaks git` history scan)
   on a weekly schedule and via `workflow_dispatch`, independent of pushes or
