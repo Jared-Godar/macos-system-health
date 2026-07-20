@@ -95,6 +95,14 @@ unless the change is trivial enough not to warrant one (say so in the PR).
 5. Wait for the `quality` CI workflow to pass.
 6. Changes land on `main` by squash merge; the squash commit references the pull
    request number (for example, `Add community contribution templates (#15)`).
+7. After merge, an agent-driven session performs cleanup without waiting to be
+   asked: pull `main` locally (fast-forward), delete the merged local topic
+   branch (and the remote branch, if GitHub's auto-delete-on-merge didn't
+   already remove it), confirm the closed issue carries the labels and
+   milestone the PR intended, and — when the work originated from a PM/spec
+   thread — produce a short handoff extract (what merged, issue/PR numbers,
+   what's next) back to that thread. This is a standing contract, not a
+   one-off ask.
 
 Open issues with the [bug report](.github/ISSUE_TEMPLATE/bug_report.yml) or
 [feature request](.github/ISSUE_TEMPLATE/feature_request.yml) templates. Blank
