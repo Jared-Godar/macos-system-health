@@ -18,5 +18,15 @@ jobs:
           fi
       - name: Install quality tools
         run: brew install actionlint shellcheck gitleaks
+      - name: Diagnose shell environment (temporary, Issue #81)
+        run: |
+          echo "PATH=$PATH"
+          command -v bash
+          bash --version | head -1
+          /bin/bash --version | head -1
+          # Single quotes are intentional: the nested `env bash` (what `#!/usr/bin/env bash`
+          # resolves) must expand $BASH_VERSION itself, not this outer shell.
+          # shellcheck disable=SC2016
+          echo "env bash -> $(env bash -c 'echo $BASH_VERSION')"
       - name: Lint, test, and scan
         run: scripts/check --all
