@@ -19,6 +19,7 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Governance: GitHub Actions workflow to auto-add PRs to "macOS System Health Roadmap" project when they link tracked issues (#34).
 - Docs: Project tracking workflow documentation in CONTRIBUTING.md (#35).
 - Docs: Project tracking verification checklist in PR template (#36).
+- Docs: Architecture Decision Record (ADR 0001) documenting report and maintenance boundaries (#9).
 
 ### Changed
 
