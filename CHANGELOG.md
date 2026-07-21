@@ -16,6 +16,9 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Log retention: configurable age/count-based cleanup via `SYSTEM_HEALTH_LOG_RETENTION_DAYS` and `SYSTEM_HEALTH_LOG_RETENTION_COUNT` environment variables in maintenance mode (#7).
 - Backup snapshot retention: configurable age/count-based cleanup for `Brewfile-*` and `conda-base-*.yml` files via `SYSTEM_HEALTH_BACKUP_RETENTION_DAYS` and `SYSTEM_HEALTH_BACKUP_RETENTION_COUNT` in maintenance mode (#24).
 - Dry-run mode for maintenance operations via `SYSTEM_HEALTH_DRY_RUN` environment variable; previews planned deletions without executing them (#7).
+- Governance: GitHub Actions workflow to auto-add PRs to "macOS System Health Roadmap" project when they link tracked issues (#34).
+- Docs: Project tracking workflow documentation in CONTRIBUTING.md (#35).
+- Docs: Project tracking verification checklist in PR template (#36).
 
 ### Changed
 
