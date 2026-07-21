@@ -1,0 +1,26 @@
+name: label-policy-gate
+on:
+  pull_request:
+    types: [opened, edited, synchronize, labeled, unlabeled, ready_for_review]
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  label-policy:
+    runs-on: macos-15
+    timeout-minutes: 10
+    env:
+      # gh reads the token from GH_TOKEN and infers the repository from GH_REPO,
+      # so the --pr fetch path needs no -R and no interactive auth.
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Evaluate PR labels against the type-aware policy
+        # Invoke through /bin/bash for the same one-interpreter reason scripts/check is
+        # (Issue #81): pins the entrypoint to the system Bash 3.2.57 the project targets.
+        # The PR number comes in through the environment, never interpolated into the
+        # command line, so an unexpected value can't reshape the shell invocation.
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: /bin/bash scripts/check-label-policy --pr "$PR_NUMBER"

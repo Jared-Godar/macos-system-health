@@ -6,6 +6,32 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Added
 
+- Governance: "correctly labeled" becomes a checkable property instead of a
+  judgment call (#54, #51). `.github/label-policy.json` is now the authoritative,
+  machine-readable required-label matrix — AREA, PRIORITY, TYPE, EFFORT, STATUS
+  always required, RISK additionally required for `type:feature`/`type:bug`,
+  CONFIDENCE/HOUSEKEEPING optional — and a new `scripts/check-label-policy`
+  evaluates a label set against it. Its policy logic is **pure and offline**
+  (`--labels "type:feature,area:governance,…"`, no network, jq only), separated
+  from a thin `--pr <n>` path that fetches a PR's labels (bounded retry, external
+  failures reported as connectivity conditions, not policy defects) and feeds the
+  same evaluator — the split is what lets the negative tests run without a token.
+  `.github/workflows/label-policy-gate.yml` runs the gate on every PR
+  (`opened`, `edited`, `synchronize`, `labeled`, `unlabeled`, `ready_for_review`),
+  itemizing each missing category with its valid labels on failure and listing the
+  satisfied categories on success. Four smoke tests bound the policy — the
+  load-bearing one asserts a `type:feature` set with no `risk:*` **fails** (the
+  exact class that slipped through before), plus `type:docs` without RISK passing,
+  a missing always-required category naming itself, and a full feature set passing.
+  `risk:low` (`Minimal or easily reversible impact`) is added to
+  `.github/labels.json` and created on the live repository so a genuinely low-risk
+  feature has a truthful label instead of an inflated `risk:medium`, ending `risk`
+  as the schema's only two-valued ordinal. `scripts/check-label-policy` is added to
+  the `scripts/check` executable-mode/lint set, and `CONTRIBUTING.md` gains a
+  one-paragraph pointer to the policy file as the source of truth. Deliberately
+  out of scope: relabeling the 7 currently-violating issues (#53), the human-facing
+  selection guide (#52 → #78), deleting the 8 unschemed stock labels (#93), and
+  adding the gate to branch protection (owed until one PR is observed green under it).
 - Governance: `AGENTS.md` gains seven session-conduct standing commitments that
   previously lived only in PM agent memory and were unreachable by executor,
   cold-start, or cloud sessions — **answer the question asked**, **keep progress

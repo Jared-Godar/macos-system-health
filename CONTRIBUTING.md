@@ -118,6 +118,15 @@ Nothing else is shipped here — no formatter, linter, theme, or ruler settings.
 Issues are labeled to enable filtering, dashboarding, and workflow tracking in
 GitHub Projects. The schema is documented in [.github/labels.json](.github/labels.json).
 
+The **required set is type-aware**, and its authoritative, machine-readable
+definition is [.github/label-policy.json](.github/label-policy.json) — the single
+source of truth the PR label gate (`.github/workflows/label-policy-gate.yml`)
+enforces on every pull request. In one sentence: AREA, PRIORITY, TYPE, EFFORT, and
+STATUS are required on every issue and PR, and RISK is additionally required
+whenever TYPE is `type:feature` or `type:bug`, while CONFIDENCE and HOUSEKEEPING
+stay optional. Wherever this prose and `.github/label-policy.json` appear to differ,
+the policy file governs.
+
 **Required labels for all open issues:**
 
 - **AREA:** Component affected — `area:governance`, `area:reporting`, `area:scheduling`, `area:script`
@@ -126,9 +135,9 @@ GitHub Projects. The schema is documented in [.github/labels.json](.github/label
 - **EFFORT:** Estimated size — `effort:small` (1–2 days), `effort:medium` (3–5 days), `effort:large` (1+ weeks)
 - **STATUS:** Workflow state — `status:ready` (no blockers), `status:blocked` (waiting on external input), `status:stalled` (waiting on review/decision)
 
-**Optional labels:**
+**Conditionally required / optional labels:**
 
-- **RISK:** Impact level — `risk:high` (security/data), `risk:medium` (workflow-affecting)
+- **RISK:** Impact level — `risk:high` (security/data), `risk:medium` (workflow-affecting), `risk:low` (minimal/reversible). **Required** for `type:feature` and `type:bug`; optional otherwise (see the policy file above).
 - **CONFIDENCE:** Validation — `confidence:low` (needs research), `confidence:unconfirmed` (community-reported)
 - **HOUSEKEEPING:** Meta labels — `dependencies`, `duplicate`, `help-wanted`
 

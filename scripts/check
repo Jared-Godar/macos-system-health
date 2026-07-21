@@ -20,7 +20,7 @@ require() {
 # below reads the index (git ls-files -s), never the working tree (#83). Keep this
 # list explicit: every tracked shell file carries a shebang, so a shebang cannot
 # discriminate the one sourced file (lib/cleanup.sh) that is correctly 100644.
-EXECUTABLE_FILES=(bin/system-health bin/install-schedule bin/configure-email scripts/check scripts/install-hooks scripts/install-quality-tools tests/smoke.sh .githooks/pre-commit .githooks/pre-push)
+EXECUTABLE_FILES=(bin/system-health bin/install-schedule bin/configure-email scripts/check scripts/check-label-policy scripts/install-hooks scripts/install-quality-tools tests/smoke.sh .githooks/pre-commit .githooks/pre-push)
 # Sourced, never executed — correctly non-executable (100644).
 SOURCED_FILES=(lib/cleanup.sh)
 # The bash -n and ShellCheck passes lint both sets; the mode check covers only the

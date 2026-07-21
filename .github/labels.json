@@ -24,7 +24,7 @@
     },
     "risk": {
       "description": "Potential impact or severity",
-      "values": ["high", "medium"]
+      "values": ["high", "medium", "low"]
     },
     "confidence": {
       "description": "Confidence level and validation status",
@@ -148,6 +148,12 @@
       "name": "risk:medium",
       "description": "Affects workflow but contained",
       "color": "FB8500",
+      "category": "risk"
+    },
+    {
+      "name": "risk:low",
+      "description": "Minimal or easily reversible impact",
+      "color": "0E8A16",
       "category": "risk"
     },
     {

@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "description": "Type-aware required-label matrix. The single source of truth for the PR label gate (#51) and the retroactive relabel (#53). Category names refer to schema categories in .github/labels.json; label names refer to entries in its labels[] array.",
+  "always_required": ["area", "priority", "type", "effort", "status"],
+  "required_for_types": {
+    "risk": ["type:feature", "type:bug"]
+  },
+  "optional": ["confidence", "housekeeping"],
+  "recognized_unschemed": [
+    "bug",
+    "enhancement",
+    "documentation",
+    "good first issue",
+    "question",
+    "invalid",
+    "wontfix",
+    "github_actions"
+  ]
+}
