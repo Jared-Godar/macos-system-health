@@ -400,15 +400,30 @@ documentation of it.
   - `actionlint` **1.7.12** — <https://github.com/rhysd/actionlint/releases>
   - `shellcheck` **0.11.0** — <https://github.com/koalaman/shellcheck/releases>
   - `gitleaks` **8.30.1** — <https://github.com/gitleaks/gitleaks/releases>
-- **To bump a tool:** edit its version in the download URL and replace its `*_sha` in the
-  same step; recompute the checksum with `curl -fsSL <url> | shasum -a 256` (or download,
-  then `shasum -a 256 <file>`). Run `scripts/check --all` locally, then let CI confirm. A
-  stale checksum fails the `Install pinned quality tools` step loudly rather than drifting.
+- **To bump a tool:** edit its version in the download URL and replace its `*_sha` — those
+  are the **only** two edits, for every tool. The workflow's `tar --strip-components` handles
+  each archive's internal layout (e.g. it drops shellcheck's versioned `shellcheck-vX.Y.Z/`
+  top directory), so there is no versioned extraction path to also change. This "URL + SHA
+  only" property holds **while the archive layouts hold** — `--strip-components=1` for
+  shellcheck's nested directory, `0` for actionlint and gitleaks, whose binaries sit at the
+  archive root. A release that changes its layout also changes its `--strip-components` value
+  in the same step, surfacing as a failing extract at bump time — a narrow window, since
+  layout can only change when someone is already performing a bump. Recompute the checksum
+  with `curl -fsSL <url> | shasum -a 256` (or download, then `shasum -a 256 <file>`).
+  Run `scripts/check --all` locally, then let CI confirm. A stale checksum fails the
+  `Install pinned quality tools` step loudly rather than drifting.
 - **Owner and cadence (a standing commitment, not an aspiration):** the maintainer
   (**Jared-Godar**) owns these pins and reviews them **on CI failure or roughly quarterly**,
   whichever comes first. `.github/dependabot.yml` covers the `github-actions` ecosystem
   only — so `actions/checkout`'s SHA pin is bumped automatically, but these three
   brew-replaced tools are **never** bumped for you.
+- **The weekly `full-history-scan.yml` gate** also runs under `/bin/bash` and uses the same
+  SHA-pinned `actions/checkout`, so the Bash-3.2 enforcement and the checkout pin reach it
+  too. Its **toolchain** is still installed with `brew install` (unpinned) on purpose — the
+  weekly scan exists to catch newly published rules, so pinning Gitleaks there could defeat
+  its point — which is also why its Homebrew tap-cleanup step is still live. Pinning that
+  toolchain is a separate decision tracked in **#84**; until then the tool pins above live
+  in `lint.yml` only.
 - **One home, not two:** this contract lives here for now; **#78 may relocate it to
   `docs/governance/`** — move it, do not copy it.
 

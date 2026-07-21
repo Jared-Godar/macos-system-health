@@ -7,6 +7,7 @@ permissions:
 jobs:
   checks:
     runs-on: macos-15
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -16,12 +17,9 @@ jobs:
           set -euo pipefail
           # Pin the quality toolchain to explicit released versions verified by SHA-256,
           # so a Homebrew rolling upgrade can never turn this gate red with no code change
-          # (Issue #81). macos-15 runners are arm64 -> darwin_arm64 builds. Upkeep is
-          # MANUAL: dependabot.yml covers github-actions only, never these three. Owner:
-          # Jared-Godar; cadence: on CI failure or ~quarterly. To bump: change the version
-          # in the URL and its *_sha together (recompute: curl -fsSL <url> | shasum -a 256);
-          # a stale checksum fails this step loudly instead of drifting silently. Full
-          # contract: AGENTS.md, "Local environment".
+          # (Issue #81). macos-15 runners are arm64 -> darwin_arm64 builds. A stale checksum
+          # fails this step loudly rather than drifting. Versions, owner, cadence, and the
+          # bump procedure are the single source of truth in AGENTS.md, "Local environment".
           al_url="https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_darwin_arm64.tar.gz"
           al_sha="aba9ced2dee8d27fecca3dc7feb1a7f9a52caefa1eb46f3271ea66b6e0e6953f"
           sc_url="https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.darwin.aarch64.tar.xz"
@@ -32,14 +30,16 @@ jobs:
           mkdir -p "$bindir"
 
           fetch() {
-            # Bounded retry w/ exponential backoff on TRANSIENT failures; fail fast on
+            # Bounded retry w/ exponential backoff on TRANSIENT failures — including a curl
+            # --connect-timeout/--max-time expiry on a stalled connection, which returns
+            # non-zero and is retried rather than hanging to the job timeout; fail fast on
             # PERMANENT ones (bad URL / auth); on exhaustion a clear connectivity message,
             # never a bare curl error (AGENTS.md: defensive external calls). $1 url  $2 out.
             local url="$1" out="$2"
             local attempt=1 max=4 delay=2 code rc
             while :; do
               set +e
-              code="$(curl -sSL -o "$out" -w '%{http_code}' "$url")"
+              code="$(curl -sSL --proto '=https' --proto-redir '=https' --max-redirs 5 --connect-timeout 20 --max-time 300 -o "$out" -w '%{http_code}' "$url")"
               rc=$?
               set -e
               code="${code:-000}"
@@ -47,12 +47,12 @@ jobs:
                 return 0
               fi
               case "$code" in
-                400|401|403|404|405|410)
+                400|401|404|405|410)
                   printf '::error::Download failed permanently for %s (HTTP %s): a bad or unauthorized pinned URL, not a transient network fault. Fix the pinned URL/version.\n' "$url" "$code"
                   return 1 ;;
               esac
               if [ "$attempt" -ge "$max" ]; then
-                printf '::error::Could not download %s after %s attempts (last HTTP=%s curl=%s). This is an EXTERNAL / CONNECTIVITY condition reaching the GitHub release CDN, not a defect in this repo. Re-run the job; if it persists see https://www.githubstatus.com.\n' "$url" "$max" "$code" "$rc"
+                printf '::error::Could not download %s after %s attempts (last HTTP=%s curl=%s). This is an external/connectivity condition reaching the GitHub release CDN, not a repository or setup defect; an HTTP 000 right after a pin edit also means a wrong host in the URL. Re-run the job; if it persists, check https://www.githubstatus.com.\n' "$url" "$max" "$code" "$rc"
                 return 1
               fi
               printf 'transient fetch failure for %s (HTTP=%s curl=%s); retry %s of %s in %ss\n' "$url" "$code" "$rc" "$attempt" "$((max - 1))" "$delay" >&2
@@ -63,8 +63,8 @@ jobs:
           }
 
           install_pinned() {
-            # $1 name  $2 url  $3 sha256  $4 path of the binary within the archive
-            local name="$1" url="$2" sha="$3" binpath="$4"
+            # $1 name  $2 url  $3 sha256  $4 binary path within the archive  $5 tar --strip-components
+            local name="$1" url="$2" sha="$3" binpath="$4" strip="$5"
             local archive="$RUNNER_TEMP/$name.archive"
             local dest="$RUNNER_TEMP/$name.extract"
             if ! fetch "$url" "$archive"; then exit 1; fi
@@ -75,13 +75,16 @@ jobs:
               exit 1
             fi
             mkdir -p "$dest"
-            tar xf "$archive" -C "$dest"
+            tar xf "$archive" -C "$dest" --strip-components="$strip"
             install -m 0755 "$dest/$binpath" "$bindir/$name"
           }
 
-          install_pinned actionlint "$al_url" "$al_sha" actionlint
-          install_pinned shellcheck "$sc_url" "$sc_sha" shellcheck-v0.11.0/shellcheck
-          install_pinned gitleaks   "$gl_url" "$gl_sha" gitleaks
+          # $5 = tar --strip-components: 0 for archives with the binary at the root
+          # (actionlint, gitleaks), 1 to drop shellcheck's versioned top directory so a
+          # version bump stays URL+sha only, with no versioned extraction path to also edit.
+          install_pinned actionlint "$al_url" "$al_sha" actionlint 0
+          install_pinned shellcheck "$sc_url" "$sc_sha" shellcheck 1
+          install_pinned gitleaks   "$gl_url" "$gl_sha" gitleaks   0
           # Only now — every checksum verified — put the pinned tools on PATH, where
           # scripts/check's require() resolves them in the next step.
           echo "$bindir" >> "$GITHUB_PATH"

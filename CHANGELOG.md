@@ -114,21 +114,27 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
   Homebrew shipped that day and a green PR could go red overnight with no code change. They
   are now pinned to explicit versions (actionlint 1.7.12, shellcheck 0.11.0, gitleaks
   8.30.1), downloaded as `darwin_arm64` builds and verified by SHA-256 **before** being
-  placed on `PATH`; the download retries transient network failures with backoff and, on
-  exhaustion, fails with a bounded connectivity message rather than a raw curl error, while
-  a checksum mismatch aborts immediately as a permanent error that is never retried. The
-  now-dead "Remove unused third-party Homebrew tap" step (added in `7713d83` only to smooth
-  `brew install`) is removed. **(2) Unenforced Bash target:** a temporary CI diagnostic
-  measured that `#!/usr/bin/env bash` resolves to `/bin/bash` 3.2.57 on `macos-15` — so CI
-  already tested Bash 3.2, but only *incidentally*, because the image ships no newer bash
-  earlier on `PATH`. The gate now runs as `/bin/bash scripts/check --all`, and
-  `scripts/check` threads `"$BASH"` through its `bash -n` and `tests/smoke.sh` calls,
-  forcing every layer under 3.2 regardless of future `PATH` drift; a permanent workflow
-  assertion fails loudly if `/bin/bash` is ever not 3.2.x. `actions/checkout` is SHA-pinned
-  to `3d3c42e5…` (`# v7.0.1`), since a major-version tag is mutable. The target-version
-  contract (Bash 3.2, the pinned versions, the recompute-SHA-on-bump rule, and the manual
-  upgrade owner/cadence — no automation covers these three tools) is recorded in `AGENTS.md`
-  § Local environment, which #78 may relocate to `docs/governance/`.
+  placed on `PATH`. The download is defensively coded: per-call `--connect-timeout` /
+  `--max-time` bounds turn a stalled connection into a retryable failure, transient failures
+  retry with exponential backoff, exhaustion fails with a bounded external/connectivity
+  message rather than a raw curl error, and a checksum mismatch aborts immediately as a
+  permanent error that is never retried; a `timeout-minutes` job cap backstops the rest. The
+  "Remove unused third-party Homebrew tap" step is removed from `lint.yml` (added in
+  `7713d83` only to smooth `brew install`, which `lint.yml` no longer runs) but retained in
+  `full-history-scan.yml`, which still uses Homebrew. **(2) Unenforced Bash target:** a
+  temporary CI diagnostic measured that `#!/usr/bin/env bash` resolves to `/bin/bash` 3.2.57
+  on `macos-15` — so CI already tested Bash 3.2, but only *incidentally*, because the image
+  ships no newer bash earlier on `PATH`. The gate now runs as `/bin/bash scripts/check
+  --all`, and `scripts/check` threads `"$BASH"` through its `bash -n` and `tests/smoke.sh`
+  calls, forcing every layer under 3.2 regardless of future `PATH` drift; a permanent
+  workflow assertion fails loudly if `/bin/bash` is ever not 3.2.x. `actions/checkout` is
+  SHA-pinned to `3d3c42e5…` (`# v7.0.1`), since a major-version tag is mutable. The same
+  `/bin/bash` gate and SHA-pinned checkout are also applied to the weekly
+  `full-history-scan.yml`; pinning that workflow's Homebrew toolchain is deferred to #84 (the
+  weekly scan intentionally catches newly published rules). The target-version contract
+  (Bash 3.2, the pinned versions, the recompute-SHA-on-bump rule, and the manual upgrade
+  owner/cadence — no automation covers these three tools) is recorded in `AGENTS.md` § Local
+  environment, which #78 may relocate to `docs/governance/`.
 - Tests: `tests/smoke.sh` now enforces **every** assertion, not just each test's
   last statement. `run_test` invoked each test in an `if` condition, which
   suppressed `set -e` across the whole test body, so a failing intermediate
