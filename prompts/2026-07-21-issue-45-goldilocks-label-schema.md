@@ -1,7 +1,7 @@
 # Issue #45: Implement Goldilocks Label Schema for GitHub Projects
 
-**Tracking issue:** #45  
-**Branch:** `feature/goldilocks-label-schema`  
+**Tracking issue:** #45
+**Branch:** `feature/goldilocks-label-schema`
 **Milestone:** Phase 2 (infrastructure)
 
 ---
@@ -155,7 +155,7 @@ gh issue view N --json labels,body,state | \
   - **STATUS:** Workflow state (ready, blocked, stalled)
   - **RISK:** Impact level (high, medium)
   - **CONFIDENCE:** Validation level (low, unconfirmed)
-  
+
   See .github/labels.json for full schema.
   ```
 
@@ -166,7 +166,7 @@ gh issue view N --json labels,body,state | \
   - Documents the schema and rationale
   - Links to .github/labels.json
   - Provides examples of when to use each label
-  
+
 - [ ] Update `.claude/projects/.../memory/MEMORY.md` with link to label schema
 
 - [ ] Update `CONTRIBUTING.md` to reference memory and schema
