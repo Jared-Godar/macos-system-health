@@ -35,6 +35,37 @@ bin/system-health maintenance
 
 Maintenance runs Homebrew update, upgrade, and cleanup plus Conda cache cleanup. It does not upgrade Conda or pip packages.
 
+## JSON Output
+
+Generate machine-readable reports with the `--format json` flag (report mode only):
+
+```bash
+bin/system-health report --format json
+```
+
+The JSON schema includes:
+- `schema_version`: "1.0" (for future compatibility)
+- `timestamp`: ISO 8601 UTC timestamp
+- `mode`: "report"
+- `exit_status`: 0 if healthy, >0 if issues detected
+- `checks`: tool status (status, skipped, timed_out, duration_ms) for each tool
+- `warnings`: non-critical issues with tool, message, and severity
+- `issues`: critical issues with tool, message, and severity
+
+All private paths are redacted before JSON serialization (same as text output).
+
+Example: Extract warnings using `jq`:
+
+```bash
+bin/system-health report --format json | jq '.warnings'
+```
+
+Verify schema version:
+
+```bash
+bin/system-health report --format json | jq '.schema_version'
+```
+
 ## Configuration
 
 ### Environment Variables

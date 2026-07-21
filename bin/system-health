@@ -2,7 +2,41 @@
 set -uo pipefail
 
 MODE="${1:-report}"
-case "$MODE" in report|maintenance) ;; *) echo "Usage: $0 [report|maintenance]" >&2; exit 64 ;; esac
+OUTPUT_FORMAT="text"
+
+case "$MODE" in report|maintenance) ;; *) echo "Usage: $0 [report|maintenance] [OPTIONS]" >&2; exit 64 ;; esac
+
+shift || true
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --format)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: --format requires a value" >&2
+        exit 64
+      fi
+      OUTPUT_FORMAT="$2"
+      shift 2
+      ;;
+    --format=*)
+      OUTPUT_FORMAT="${1#--format=}"
+      shift
+      ;;
+    *)
+      echo "Usage: $0 [report|maintenance] [--format text|json]" >&2
+      exit 64
+      ;;
+  esac
+done
+
+if [[ "$OUTPUT_FORMAT" != "text" && "$OUTPUT_FORMAT" != "json" ]]; then
+  echo "Error: Invalid format '$OUTPUT_FORMAT'. Must be 'text' or 'json'." >&2
+  exit 64
+fi
+
+if [[ "$MODE" != "report" && "$OUTPUT_FORMAT" == "json" ]]; then
+  echo "Error: JSON output format is only supported in report mode." >&2
+  exit 64
+fi
 
 # LaunchAgents start with a minimal PATH. Keep caller-provided commands first so
 # tests and deliberate overrides remain possible, then add common macOS paths.
@@ -30,6 +64,13 @@ CHECK_HOMEBREW=true
 CHECK_CONDA=true
 CHECK_PIP=true
 COMMAND_TIMEOUT=30
+
+HOMEBREW_STATUS="unknown" HOMEBREW_SKIPPED=false HOMEBREW_TIMED_OUT=false HOMEBREW_DURATION=0
+CONDA_STATUS="unknown" CONDA_SKIPPED=false CONDA_TIMED_OUT=false CONDA_DURATION=0
+PIP_STATUS="unknown" PIP_SKIPPED=false PIP_TIMED_OUT=false PIP_DURATION=0
+
+WARNINGS_LIST=""
+ISSUES_LIST=""
 
 if ! [[ "$DISK_THRESHOLD" =~ ^[0-9]+$ ]] || (( DISK_THRESHOLD < 0 || DISK_THRESHOLD > 100 )); then
   echo "SYSTEM_HEALTH_DISK_THRESHOLD must be an integer from 0 through 100." >&2
@@ -66,13 +107,106 @@ redact_stream() {
     }
   '
 }
-log() { printf '%b\n' "$*" | tee -a "$LOG_FILE"; }
-log_output() { [[ -n "$1" ]] && printf '%s\n' "$1" | redact_stream | tee -a "$LOG_FILE"; }
+log() {
+  if [[ "$OUTPUT_FORMAT" == "json" ]]; then
+    printf '%b\n' "$*" >> "$LOG_FILE"
+  else
+    printf '%b\n' "$*" | tee -a "$LOG_FILE"
+  fi
+}
+log_output() {
+  if [[ -n "$1" ]]; then
+    if [[ "$OUTPUT_FORMAT" == "json" ]]; then
+      printf '%s\n' "$1" | redact_stream >> "$LOG_FILE"
+    else
+      printf '%s\n' "$1" | redact_stream | tee -a "$LOG_FILE"
+    fi
+  fi
+}
 section() { log "\n== $* =="; }
-warn() { WARNINGS=$((WARNINGS + 1)); log "WARNING: $*"; }
-fail() { ISSUES=$((ISSUES + 1)); log "ERROR: $*"; }
+redact_value() {
+  local value="$1"
+  value="${value//$HOME/\$HOME}"
+  value="${value//$REDACT_CONDA_BASE/\$CONDA_BASE}"
+  printf '%s' "$value"
+}
+json_escape() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\n'/\\n}"
+  value="${value//$'\r'/\\r}"
+  value="${value//$'\t'/\\t}"
+  printf '%s' "$value"
+}
+record_check() {
+  local tool="$1" status="$2" duration="$3"
+  case "$tool" in
+    homebrew)
+      HOMEBREW_STATUS="$status"
+      HOMEBREW_DURATION="$duration"
+      HOMEBREW_SKIPPED=false
+      HOMEBREW_TIMED_OUT=false
+      [[ "$status" == "skipped" ]] && HOMEBREW_SKIPPED=true
+      [[ "$status" == "timeout" ]] && HOMEBREW_TIMED_OUT=true
+      ;;
+    conda)
+      CONDA_STATUS="$status"
+      CONDA_DURATION="$duration"
+      CONDA_SKIPPED=false
+      CONDA_TIMED_OUT=false
+      [[ "$status" == "skipped" ]] && CONDA_SKIPPED=true
+      [[ "$status" == "timeout" ]] && CONDA_TIMED_OUT=true
+      ;;
+    pip)
+      PIP_STATUS="$status"
+      PIP_DURATION="$duration"
+      PIP_SKIPPED=false
+      PIP_TIMED_OUT=false
+      [[ "$status" == "skipped" ]] && PIP_SKIPPED=true
+      [[ "$status" == "timeout" ]] && PIP_TIMED_OUT=true
+      ;;
+  esac
+}
+add_warning() {
+  local tool="$1" message="$2" severity="${3:-low}"
+  local redacted_msg
+  WARNINGS=$((WARNINGS + 1))
+  redacted_msg=$(redact_value "$message")
+  if [[ -z "$WARNINGS_LIST" ]]; then
+    WARNINGS_LIST="$tool|$redacted_msg|$severity"
+  else
+    WARNINGS_LIST="$WARNINGS_LIST"$'\n'"$tool|$redacted_msg|$severity"
+  fi
+  log "WARNING: $message"
+}
+add_issue() {
+  local tool="$1" message="$2" severity="${3:-high}"
+  local redacted_msg
+  ISSUES=$((ISSUES + 1))
+  redacted_msg=$(redact_value "$message")
+  if [[ -z "$ISSUES_LIST" ]]; then
+    ISSUES_LIST="$tool|$redacted_msg|$severity"
+  else
+    ISSUES_LIST="$ISSUES_LIST"$'\n'"$tool|$redacted_msg|$severity"
+  fi
+  log "ERROR: $message"
+}
+warn() { add_warning "system" "$*"; }
+fail() { add_issue "system" "$*"; }
 have() { command -v "$1" >/dev/null 2>&1; }
-run_logged() { "$@" 2>&1 | redact_stream | tee -a "$LOG_FILE"; return "${PIPESTATUS[0]}"; }
+run_logged() {
+  local output status
+  output=$("$@" 2>&1)
+  status=$?
+  output=$(printf '%s' "$output" | redact_stream)
+  if [[ "$OUTPUT_FORMAT" == "json" ]]; then
+    printf '%s\n' "$output" >> "$LOG_FILE"
+  else
+    printf '%s\n' "$output" | tee -a "$LOG_FILE"
+  fi
+  return $status
+}
 # shellcheck disable=SC2329
 capture_output() {
   local variable="$1" output status
@@ -141,6 +275,51 @@ execute_with_timeout() {
   output="$(cat "$tmpfile")"
   printf -v "$output_var" '%s' "$output"
   printf -v "$status_var" '%d' "$status"
+}
+
+output_json() {
+  local exit_code="$1"
+  local timestamp
+  timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+
+  printf '{'
+  printf '"schema_version":"1.0",'
+  printf '"timestamp":"%s",' "$timestamp"
+  printf '"mode":"report",'
+  printf '"exit_status":%d,' "$exit_code"
+
+  printf '"checks":{'
+  printf '"homebrew":{"status":"%s","skipped":%s,"timed_out":%s,"duration_ms":%d},' \
+    "$HOMEBREW_STATUS" "$HOMEBREW_SKIPPED" "$HOMEBREW_TIMED_OUT" "$HOMEBREW_DURATION"
+  printf '"conda":{"status":"%s","skipped":%s,"timed_out":%s,"duration_ms":%d},' \
+    "$CONDA_STATUS" "$CONDA_SKIPPED" "$CONDA_TIMED_OUT" "$CONDA_DURATION"
+  printf '"pip":{"status":"%s","skipped":%s,"timed_out":%s,"duration_ms":%d}' \
+    "$PIP_STATUS" "$PIP_SKIPPED" "$PIP_TIMED_OUT" "$PIP_DURATION"
+  printf '},'
+
+  printf '"warnings":['
+  if [[ -n "$WARNINGS_LIST" ]]; then
+    local first=true
+    while IFS='|' read -r tool msg severity; do
+      [[ "$first" == true ]] && first=false || printf ','
+      printf '{"tool":"%s","message":"%s","severity":"%s"}' \
+        "$(json_escape "$tool")" "$(json_escape "$msg")" "$(json_escape "$severity")"
+    done <<< "$WARNINGS_LIST"
+  fi
+  printf '],'
+
+  printf '"issues":['
+  if [[ -n "$ISSUES_LIST" ]]; then
+    local first=true
+    while IFS='|' read -r tool msg severity; do
+      [[ "$first" == true ]] && first=false || printf ','
+      printf '{"tool":"%s","message":"%s","severity":"%s"}' \
+        "$(json_escape "$tool")" "$(json_escape "$msg")" "$(json_escape "$severity")"
+    done <<< "$ISSUES_LIST"
+  fi
+  printf ']'
+
+  printf '}\n'
 }
 
 load_config() {
@@ -240,6 +419,8 @@ fi
 
 if [[ "$CHECK_HOMEBREW" == "true" ]]; then
   section "Homebrew"
+  TOOL_START_TIME=$(date +%s%N)
+  WARNINGS_BEFORE=$WARNINGS
   if have brew; then
     BREW="$(command -v brew)"
     log "Version: $("$BREW" --version | head -n 1)"
@@ -265,12 +446,20 @@ if [[ "$CHECK_HOMEBREW" == "true" ]]; then
   else
     warn "Homebrew is not installed or not on PATH."
   fi
+  TOOL_END_TIME=$(date +%s%N)
+  TOOL_DURATION=$(( (TOOL_END_TIME - TOOL_START_TIME) / 1000000 ))
+  BREW_STATUS="success"
+  [[ $WARNINGS -gt $WARNINGS_BEFORE ]] && BREW_STATUS="warning"
+  record_check "homebrew" "$BREW_STATUS" "$TOOL_DURATION"
 else
   log "Homebrew check is disabled in configuration."
+  record_check "homebrew" "skipped" 0
 fi
 
 if [[ "$CHECK_CONDA" == "true" ]]; then
   section "Conda"
+  TOOL_START_TIME=$(date +%s%N)
+  WARNINGS_BEFORE=$WARNINGS
   if have conda; then
     CONDA="$(command -v conda)"
     log "Version: $("$CONDA" --version 2>&1)"
@@ -303,12 +492,20 @@ if [[ "$CHECK_CONDA" == "true" ]]; then
   else
     warn "Conda is not installed or not on PATH."
   fi
+  TOOL_END_TIME=$(date +%s%N)
+  TOOL_DURATION=$(( (TOOL_END_TIME - TOOL_START_TIME) / 1000000 ))
+  CONDA_STATUS="success"
+  [[ $WARNINGS -gt $WARNINGS_BEFORE ]] && CONDA_STATUS="warning"
+  record_check "conda" "$CONDA_STATUS" "$TOOL_DURATION"
 else
   log "Conda check is disabled in configuration."
+  record_check "conda" "skipped" 0
 fi
 
 if [[ "$CHECK_PIP" == "true" ]]; then
   section "Python"
+  TOOL_START_TIME=$(date +%s%N)
+  WARNINGS_BEFORE=$WARNINGS
   if have python3; then
     PYTHON="$(command -v python3)"
     log "Version: $("$PYTHON" --version 2>&1)"
@@ -326,8 +523,14 @@ if [[ "$CHECK_PIP" == "true" ]]; then
   else
     warn "python3 is not installed or not on PATH."
   fi
+  TOOL_END_TIME=$(date +%s%N)
+  TOOL_DURATION=$(( (TOOL_END_TIME - TOOL_START_TIME) / 1000000 ))
+  PIP_STATUS="success"
+  [[ $WARNINGS -gt $WARNINGS_BEFORE ]] && PIP_STATUS="warning"
+  record_check "pip" "$PIP_STATUS" "$TOOL_DURATION"
 else
   log "Python check is disabled in configuration."
+  record_check "pip" "skipped" 0
 fi
 
 if [[ "$MODE" == maintenance ]]; then
@@ -352,9 +555,15 @@ if [[ -n "$MAIL_TO" ]]; then
   fi
 fi
 
-section "Summary"
-log "Issues: $ISSUES; warnings: $WARNINGS"
-log "Finished: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+EXIT_CODE=0
+(( ISSUES > 0 )) && EXIT_CODE=1
 
-(( ISSUES > 0 )) && exit 1
-exit 0
+if [[ "$OUTPUT_FORMAT" == "json" ]]; then
+  output_json "$EXIT_CODE"
+else
+  section "Summary"
+  log "Issues: $ISSUES; warnings: $WARNINGS"
+  log "Finished: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+fi
+
+exit "$EXIT_CODE"

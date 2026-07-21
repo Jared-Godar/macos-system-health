@@ -414,5 +414,149 @@ run_test test_config_disabled_tool_not_executed
 run_test test_config_invalid_yaml_fails_early
 run_test test_config_default_behavior_all_enabled
 
+test_json_validity() {
+  local case_dir="$TMP_ROOT/json_validity"
+  mkdir -p "$case_dir/home" "$case_dir/tmp" "$case_dir/stubs"
+  make_stubs "$case_dir/stubs"
+
+  HOME="$case_dir/home" TMPDIR="$case_dir/tmp" PATH="$case_dir/stubs:/usr/bin:/bin" \
+  SYSTEM_HEALTH_LOG_DIR="$case_dir/logs" \
+    "$ROOT/bin/system-health" report --format json > "$case_dir/output" 2>&1
+
+  if command -v python3 >/dev/null 2>&1; then
+    if tail -1 "$case_dir/output" | python3 -m json.tool > /dev/null 2>&1; then
+      pass "JSON output is valid (Python json.tool)"
+    else
+      fail "JSON output is not valid (Python json.tool)"
+    fi
+  else
+    pass "Python unavailable, skipping JSON validation"
+  fi
+}
+
+test_json_schema_version() {
+  local case_dir="$TMP_ROOT/json_schema_version"
+  mkdir -p "$case_dir/home" "$case_dir/tmp" "$case_dir/stubs"
+  make_stubs "$case_dir/stubs"
+
+  HOME="$case_dir/home" TMPDIR="$case_dir/tmp" PATH="$case_dir/stubs:/usr/bin:/bin" \
+  SYSTEM_HEALTH_LOG_DIR="$case_dir/logs" \
+    "$ROOT/bin/system-health" report --format json > "$case_dir/output" 2>&1
+
+  assert_contains "$case_dir/output" '"schema_version":"1.0"'
+}
+
+test_json_required_fields() {
+  local case_dir="$TMP_ROOT/json_required_fields"
+  mkdir -p "$case_dir/home" "$case_dir/tmp" "$case_dir/stubs"
+  make_stubs "$case_dir/stubs"
+
+  HOME="$case_dir/home" TMPDIR="$case_dir/tmp" PATH="$case_dir/stubs:/usr/bin:/bin" \
+  SYSTEM_HEALTH_LOG_DIR="$case_dir/logs" \
+    "$ROOT/bin/system-health" report --format json > "$case_dir/output" 2>&1
+
+  local output
+  output=$(tail -1 "$case_dir/output")
+
+  for field in 'schema_version' 'timestamp' 'mode' 'exit_status' 'checks' 'warnings' 'issues'; do
+    if grep -q "\"$field\"" <<< "$output"; then
+      pass "JSON contains field: $field"
+    else
+      fail "JSON missing field: $field"
+    fi
+  done
+}
+
+test_json_timestamp_format() {
+  local case_dir="$TMP_ROOT/json_timestamp"
+  mkdir -p "$case_dir/home" "$case_dir/tmp" "$case_dir/stubs"
+  make_stubs "$case_dir/stubs"
+
+  HOME="$case_dir/home" TMPDIR="$case_dir/tmp" PATH="$case_dir/stubs:/usr/bin:/bin" \
+  SYSTEM_HEALTH_LOG_DIR="$case_dir/logs" \
+    "$ROOT/bin/system-health" report --format json > "$case_dir/output" 2>&1
+
+  if tail -1 "$case_dir/output" | grep -qE '"timestamp":"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z"'; then
+    pass "JSON timestamp is ISO 8601 UTC format"
+  else
+    fail "JSON timestamp is not ISO 8601 UTC format"
+  fi
+}
+
+test_json_checks_structure() {
+  local case_dir="$TMP_ROOT/json_checks"
+  mkdir -p "$case_dir/home" "$case_dir/tmp" "$case_dir/stubs"
+  make_stubs "$case_dir/stubs"
+
+  HOME="$case_dir/home" TMPDIR="$case_dir/tmp" PATH="$case_dir/stubs:/usr/bin:/bin" \
+  SYSTEM_HEALTH_LOG_DIR="$case_dir/logs" \
+    "$ROOT/bin/system-health" report --format json > "$case_dir/output" 2>&1
+
+  for field in 'status' 'skipped' 'timed_out' 'duration_ms'; do
+    if tail -1 "$case_dir/output" | grep -q "\"$field\""; then
+      pass "JSON checks contain field: $field"
+    else
+      fail "JSON checks missing field: $field"
+    fi
+  done
+}
+
+test_json_no_private_paths() {
+  local case_dir="$TMP_ROOT/json_redaction"
+  mkdir -p "$case_dir/home" "$case_dir/tmp" "$case_dir/stubs"
+  make_stubs "$case_dir/stubs"
+
+  HOME="$case_dir/home" TMPDIR="$case_dir/tmp" PATH="$case_dir/stubs:/usr/bin:/bin" \
+  SYSTEM_HEALTH_LOG_DIR="$case_dir/logs" \
+    "$ROOT/bin/system-health" report --format json > "$case_dir/output" 2>&1
+
+  if ! tail -1 "$case_dir/output" | grep -qE "\\$HOME|miniforge|anaconda|/private"; then
+    pass "JSON output has no private paths"
+  else
+    fail "JSON output contains private paths"
+  fi
+}
+
+test_json_format_requires_report_mode() {
+  local case_dir="$TMP_ROOT/json_report_only"
+  mkdir -p "$case_dir/home" "$case_dir/tmp" "$case_dir/stubs"
+  make_stubs "$case_dir/stubs"
+
+  HOME="$case_dir/home" TMPDIR="$case_dir/tmp" PATH="$case_dir/stubs:/usr/bin:/bin" \
+  SYSTEM_HEALTH_LOG_DIR="$case_dir/logs" \
+    "$ROOT/bin/system-health" maintenance --format json > "$case_dir/output" 2>&1
+
+  if grep -q "only supported in report mode" "$case_dir/output"; then
+    pass "JSON format requires report mode"
+  else
+    fail "JSON format should require report mode"
+  fi
+}
+
+test_json_invalid_format_error() {
+  local case_dir="$TMP_ROOT/json_invalid"
+  mkdir -p "$case_dir/home" "$case_dir/tmp" "$case_dir/stubs"
+  make_stubs "$case_dir/stubs"
+
+  HOME="$case_dir/home" TMPDIR="$case_dir/tmp" PATH="$case_dir/stubs:/usr/bin:/bin" \
+  SYSTEM_HEALTH_LOG_DIR="$case_dir/logs" \
+    "$ROOT/bin/system-health" report --format invalid > "$case_dir/output" 2>&1
+
+  if grep -q "Invalid format" "$case_dir/output"; then
+    pass "Invalid format produces error"
+  else
+    fail "Invalid format should produce error"
+  fi
+}
+
+run_test test_json_validity
+run_test test_json_schema_version
+run_test test_json_required_fields
+run_test test_json_timestamp_format
+run_test test_json_checks_structure
+run_test test_json_no_private_paths
+run_test test_json_format_requires_report_mode
+run_test test_json_invalid_format_error
+
 printf '%s passed; %s failed\n' "$PASS" "$FAIL"
 (( FAIL == 0 ))
