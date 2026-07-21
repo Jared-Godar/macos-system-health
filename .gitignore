@@ -70,10 +70,9 @@ coverage/
 test-results/
 *.tap
 
-# Session artifacts (walkthroughs, handoffs, continuity docs)
-artifacts/
-artifacts/walkthroughs/
-artifacts/session-handoffs/
+# Session artifacts (specs, walkthroughs, handoffs, continuity docs) are TRACKED
+# on purpose — see AGENTS.md "How these rules reach every session". The timestamped
+# artifacts/specs/ path is the spec-immutability mechanism, so these must be in git.
 
 # Temporary git worktrees
 .claude/worktrees/
