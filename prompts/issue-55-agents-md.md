@@ -55,6 +55,26 @@ followed. ecg's `AGENTS.md` is intentionally over-governed — do NOT replicate 
 7. **Local environment** — macOS; every shown command in Fish syntax (`set -gx`, `env VAR=…`,
    `(cmd)`, `; and` / `; or`).
 
+## Also deliver: a thin, auto-loaded `CLAUDE.md` (the hedge — required)
+
+Claude Code reliably auto-loads `CLAUDE.md`; its auto-load of `AGENTS.md` is tool/version
+dependent. So a session pointed at this repo could miss AGENTS.md entirely. Add a **short**
+project `CLAUDE.md` at repo root (~15 lines) whose only job is:
+- one line: "The operating contract for this repo is `AGENTS.md` — read it and follow it."
+- inline the **three non-negotiables verbatim** so they hold even if AGENTS.md is never opened:
+  done-means-done (with receipts), the four gated actions (push / open-PR / merge / release), and
+  the model-tier flag rule.
+Keep it a pointer + safety net, NOT a second contract. Do not restate all of AGENTS.md — that
+creates drift. (Precedent: github-portfolio-modernization carries both AGENTS.md and CLAUDE.md.)
+
+## Add to AGENTS.md a short "How these rules reach every session" note (4–6 lines)
+
+State the layering so the redundancy reads as deliberate, not sloppy: AGENTS.md is authoritative;
+CLAUDE.md mirrors the non-negotiables for auto-load; every executor seed opens with the
+read-contracts block; enforceable rules (labels, changelog, metadata, tests) are additionally
+enforced by **CI gates** so compliance does not depend on any agent reading anything; local
+memory is the PM's continuity notebook and is NOT relied on to reach executor/cloud sessions.
+
 ## Doc reconciliation (do all three)
 
 - Fold the still-true content of `docs/GOVERNANCE.md` into `AGENTS.md`, then `git rm` GOVERNANCE.md.
