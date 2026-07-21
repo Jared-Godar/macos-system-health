@@ -203,13 +203,23 @@ withhold work, manufacture a blocker, or bounce a self-evident decision back to
 the maintainer.** The test for whether a boundary applies is: *does honoring it
 make the result better?*
 
-- **PM thread** owns the reversible metadata plane and acts in it directly,
-  without asking: create/edit issues, labels, milestones, project-board items, and
-  comments. It plans, documents, verifies executor output by independent
-  read-back, and announces the merge signal. It does not commit, push, or edit
+- **PM thread — permitted, without asking:** create and edit issues, labels,
+  milestones, project-board items, and comments; author specs under
+  `artifacts/specs/`; write to agent memory; and run **read-only** verification
+  against **committed or pushed** state (`git log`, `git diff`, `git show`,
+  `gh … view`, reading files on a merged or pushed commit). It plans, documents,
+  verifies executor output by independent read-back, and announces the merge
+  signal.
+- **PM thread — never, without the maintainer's explicit per-instance
+  approval:** edit any file in the repository outside `artifacts/specs/`; run
+  tests, gates, or `scripts/check`; run any git command that changes state;
+  launch agents or workflows against the repository; or read, copy, or test an
+  executor's **uncommitted** working state. It does not commit, push, or edit
   code — because review, CI, and receipts produce better output, not for lane
-  purity. Verification work (running the suite, reproducing a bug, re-running an
-  executor's receipts) is expected of the PM and is not executor work.
+  purity.
+- **The grey area, stated explicitly:** reading **committed or pushed** state to
+  verify an executor's claims is core PM work and always permitted. Reading its
+  **uncommitted** state never is.
 - **Executor session** owns code and repo mutations: branches, commits, pushes,
   and PR creation, exactly per a spec in `prompts/`. It reads the durable
   contracts first (see "How these rules reach every session"), reports back at
@@ -391,10 +401,13 @@ The redundancy below is deliberate, not sloppy — no single surface reaches eve
 session type, and reading a rule is not the same as enforcing it:
 
 - **`AGENTS.md` (this file) is authoritative.** Everything else mirrors or defers to it.
-- **`CLAUDE.md`** at the repo root mirrors the three non-negotiables (done-means-done,
-  the four gated actions, the model-tier flag) because Claude Code reliably
-  auto-loads `CLAUDE.md`, while its auto-load of `AGENTS.md` is tool/version
-  dependent. It is a pointer + safety net, not a second contract.
+- **`CLAUDE.md`** at the repo root mirrors this file's eleven non-negotiables
+  (done-means-done, the four gated actions, the model-tier flag, spec
+  immutability, and the seven session-conduct rules) because Claude Code
+  reliably auto-loads `CLAUDE.md`, while its auto-load of `AGENTS.md` is
+  tool/version dependent. It is a pointer + safety net, not a second contract.
+  The duplication is deliberate reinforcement; if the two files ever appear to
+  disagree, this file is authoritative and `CLAUDE.md` is stale.
 - **Every executor spec** opens with the read-the-contracts block, so a session
   that starts from a spec is bound even before opening this file. Specs are
   authored at **`artifacts/specs/<UTC-timestamp>-issue-<n>-<slug>.md`** and are

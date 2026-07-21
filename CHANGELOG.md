@@ -14,7 +14,27 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
   caveats**, **estimates are the maintainer's decision inputs, not arguments for
   a preference**, **never touch in-flight executor work**, **propose lane
   deviations and await approval** (with both the no-permission-needed and
-  propose-and-wait lists), and **the lane fails in both directions** (#77).
+  propose-and-wait lists), and **the lane fails in both directions** (#77). The
+  same seven are mirrored verbatim into the root `CLAUDE.md` safety net
+  alongside its four existing non-negotiables (eleven total), since none are
+  repo-specific and redundancy across surfaces is the explicit design goal —
+  `CLAUDE.md`'s opening paragraph is rewritten to say "eleven" instead of the
+  stale "three," and both files now state which one is authoritative if they
+  ever appear to disagree (`AGENTS.md`). `AGENTS.md`'s own cross-reference to
+  `CLAUDE.md` under "How these rules reach every session" is updated to match.
+- Governance: resolved a standing contradiction in `AGENTS.md`'s "Roles and the
+  four gated actions" — the PM thread bullet both granted "verification work…
+  is expected of the PM" and stated the PM "never commits, pushes, or edits
+  code," and both readings had been relied on in practice. Replaced the single
+  bullet with three: what the PM may do without asking (issue/label/milestone/
+  board/comment work, authoring specs, agent memory, and **read-only**
+  verification against **committed or pushed** state only), what it may never do
+  without the maintainer's explicit per-instance approval (editing repo files
+  outside `artifacts/specs/`, running tests/gates/`scripts/check`, any
+  state-changing git command, launching agents or workflows, or touching an
+  executor's **uncommitted** working state), and the grey area named explicitly
+  — verifying committed/pushed state is core PM work, verifying uncommitted
+  state never is (#77).
 - Governance: a `.githooks/pre-push` guard makes a stale gate receipt impossible to
   push. It refuses a dirty working tree (so `scripts/check --all` reflects the
   committed state, not an uncommitted mix), runs the full gate on that committed
