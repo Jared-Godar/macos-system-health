@@ -6,6 +6,12 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Added
 
+- Governance: layered operating contract for agent sessions — a lean, authoritative
+  `AGENTS.md` (standing commitments, roles and the four gated actions, canonical
+  flow, model/effort sizing, definition of done, local environment) plus a thin
+  auto-loaded root `CLAUDE.md` mirroring the three non-negotiables; the stale
+  `docs/GOVERNANCE.md` was folded in and removed, `docs/PM-WORKFLOW.md` and
+  `docs/README.md` now point to `AGENTS.md` as authoritative (#55).
 - Docs: v1.0 acceptance criteria document with platform matrix and success metrics (#6).
 - A recurring `full-history-scan.yml` CI workflow: runs the same
   `scripts/check --all` command (including the `gitleaks git` history scan)

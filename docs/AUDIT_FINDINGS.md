@@ -73,8 +73,9 @@ has the same unbounded-growth problem and is not covered by #7's scope — filed
   (`quality` workflow) already exists and works; it's just not enforced. Filed as #23.
 - **Labels:** default GitHub set (`bug`, `documentation`, `enhancement`, etc.) plus
   `dependencies`, `github_actions`. This audit added a small `area:*`/`priority:*`
-  layer (see `docs/GOVERNANCE.md`) rather than replacing the existing type-ish labels,
-  keeping the taxonomy lean.
+  layer (the taxonomy since grew into the schema in `.github/labels.json`; see
+  `CONTRIBUTING.md` and `AGENTS.md`) rather than replacing the existing type-ish
+  labels, keeping the taxonomy lean.
 - **PR/issue metadata:** issue templates (bug/feature) and a PR template already exist.
 - **Milestone/project tracking:** a `v1.0` milestone and a public roadmap project already
   track the 8 open enhancement issues.
