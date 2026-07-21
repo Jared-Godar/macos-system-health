@@ -11,7 +11,10 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
   committed state, not an uncommitted mix), runs the full gate on that committed
   state, and whitespace-checks every commit in the pushed range — not just the tip,
   which is all `git show --check HEAD` covers, so the `043163a`-red/`22c5c39`-green
-  range that slipped through in PR #72 would now be refused. `--no-verify` bypasses
+  range that slipped through in PR #72 would now be refused. A missing required
+  tool (`scripts/check` exit 69) or bad invocation (64) is refused as a
+  setup/toolchain condition with its install remediation, not misreported as a
+  code defect. `--no-verify` bypasses
   it for genuine emergencies, and `scripts/install-hooks` installs it alongside the
   existing `pre-commit` hook (the new hook is added to the `scripts/check` lint set).
   `AGENTS.md` gains the matching **"Receipts expire on the next mutation"** standing
