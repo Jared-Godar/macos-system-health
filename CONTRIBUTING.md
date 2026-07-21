@@ -23,15 +23,20 @@ here drifts from the tooling in `scripts/`, `.githooks/`, `.github/`, and
 
 ## One-time setup
 
-Install the repository-owned pre-commit hook so every commit runs the staged
-checks automatically:
+Install the repository-owned hooks so the checks run automatically:
 
 ```fish
 scripts/install-hooks
 ```
 
-This sets `core.hooksPath` to `.githooks`; the installed `pre-commit` hook runs
-`scripts/check --staged` before each commit.
+This sets `core.hooksPath` to `.githooks`, which installs two hooks:
+
+- `pre-commit` runs `scripts/check --staged` before each commit.
+- `pre-push` runs `scripts/check --all` on the **committed** state and refuses a
+  push whose gate is red, so a stale green receipt can never be reported for a
+  pushed state (see [AGENTS.md](AGENTS.md), "Receipts expire on the next
+  mutation"). It also whitespace-checks every commit in the pushed range, not
+  just the tip. Bypass in a genuine emergency with `git push --no-verify`.
 
 ## Running the checks
 

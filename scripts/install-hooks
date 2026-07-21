@@ -4,4 +4,17 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 git config core.hooksPath .githooks
-printf '%s\n' 'Installed repository hooks. Every commit will run scripts/check --staged.'
+
+# Both hooks live in .githooks/, so setting core.hooksPath installs them together.
+# Verify the executable bit so a fresh clone gets a working guard, not a silent skip.
+for hook in pre-commit pre-push; do
+  if [[ ! -x ".githooks/$hook" ]]; then
+    printf 'Warning: .githooks/%s is missing or not executable; run: chmod +x .githooks/%s\n' \
+      "$hook" "$hook" >&2
+  fi
+done
+
+printf '%s\n' 'Installed repository hooks (core.hooksPath -> .githooks):'
+printf '%s\n' '  - pre-commit runs scripts/check --staged before each commit.'
+printf '%s\n' '  - pre-push runs scripts/check --all on the committed state and refuses'
+printf '%s\n' '    a red push (emergency bypass: git push --no-verify).'

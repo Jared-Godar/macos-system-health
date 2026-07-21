@@ -22,6 +22,16 @@ Hard contracts. Violating one is a defect, not a style choice.
   Report every claim as **done** (receipt attached) / **relayed** (an executor's
   claim not re-verified) / **queued** / **owed** / **not done**. Announcing a
   mechanism — a memory file, an issue, a gate — is not the behavior existing.
+- **Receipts expire on the next mutation.** A gate or test result is a fact about
+  one specific tree state, not a property of the branch. Any mutation taken
+  afterward — `git add`, a commit, a `.gitignore` or `.gitattributes` change —
+  voids it. The **last** command before reporting a gate result is the gate
+  itself, run on the state being shipped: mutate → stage → commit → **then** gate
+  → report, never gate → commit → report. When a change alters which files are
+  tracked, assume every prior receipt is stale and re-take all of them. The same
+  rule governs claims about another session's state — whether a branch is pushed,
+  whether a PR exists — verify it this turn rather than carrying an assumption
+  forward. Enforced for pushes by the `.githooks/pre-push` guard (Issue #73).
 - **Calibrated claims.** Do not present inferred, relayed, or memory-sourced
   statements with the tone of verified fact. State the confidence and its basis
   whenever a claim is not directly verified this session. In particular, the

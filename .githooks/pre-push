@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+#
+# pre-push — refuse a push whose gate is red, so a *stale* green receipt can never
+# be reported for a pushed state (Issue #73).
+#
+# A gate result is a fact about ONE tree state, not a property of the branch: a
+# receipt taken before a later `git add`, commit, or .gitignore/.gitattributes
+# change can read green while the state actually being pushed is red. This hook
+# closes that window at the push boundary. It:
+#   (1) refuses a dirty working tree, so `scripts/check --all` reflects the
+#       committed state being pushed rather than an uncommitted mix;
+#   (2) runs the full `scripts/check --all` gate on that committed state,
+#       distinguishing a genuine red gate (a code defect) from an un-runnable
+#       gate — a missing required tool (exit 69) or bad invocation (exit 64) is
+#       reported as a setup condition, not a code defect; and
+#   (3) whitespace-checks EVERY commit in the pushed range, not just the tip
+#       (`scripts/check --all` only runs `git show --check` on HEAD).
+#
+# It does NOT run the non-whitespace suite (ShellCheck, smoke tests, actionlint)
+# against each historical commit — only against the final committed tree — because
+# doing so would require checking out each commit, a stash/checkout dance that is
+# unsafe in a hook. It is not a substitute for CI.
+#
+# Bypass in a genuine emergency with `git push --no-verify`; a guard nobody can
+# override gets disabled wholesale. See AGENTS.md, "Receipts expire on the next
+# mutation."
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+# Slurp the ref list git provides on stdin BEFORE running the gate, so the gate's
+# subprocesses can never consume it. Each line is:
+#   <local-ref> <local-oid> <remote-ref> <remote-oid>
+refs=()
+while IFS= read -r line; do
+  if [[ -n "$line" ]]; then
+    refs+=("$line")
+  fi
+done
+
+# Refusal for a genuine red gate. $1 is the one-line reason; the rest names the
+# stale-receipt failure mode and the fix, not just the gate output.
+refuse() {
+  {
+    printf '\n'
+    printf 'pre-push refused this push: %s\n\n' "$1"
+    printf 'Why (Issue #73): a gate result is a fact about ONE tree state, not a\n'
+    printf 'property of the branch. A receipt taken before a later git add, commit,\n'
+    printf 'or .gitignore/.gitattributes change is STALE — it can read green while the\n'
+    printf 'state being pushed is red. This hook refuses that push so a false-green\n'
+    printf 'receipt can never be reported for a pushed state.\n\n'
+    printf 'Fix: make the state final, THEN gate it, THEN report —\n'
+    printf '    git add -A; and git commit        # or: git commit --amend --no-edit\n'
+    printf '    scripts/check --all                # must print: All checks passed.\n\n'
+    printf 'This hook covers: a dirty working tree (refused), the full\n'
+    printf '  scripts/check --all gate on the committed state, and a whitespace\n'
+    printf '  check of EVERY commit in the pushed range (not just the tip).\n'
+    printf 'It does NOT cover: the non-whitespace suite (ShellCheck, smoke tests,\n'
+    printf '  actionlint) against each historical commit — only against the final\n'
+    printf '  committed tree — and it is not a substitute for CI.\n\n'
+    printf 'Emergency bypass (skips ALL of the above): git push --no-verify\n'
+  } >&2
+}
+
+# Refusal for an un-runnable gate (missing tool / bad invocation), framed as a
+# setup condition rather than a code defect. $1 is scripts/check's exit code.
+refuse_setup() {
+  {
+    printf '\n'
+    printf 'pre-push refused this push: the gate could not run to completion (scripts/check exit %s).\n\n' "$1"
+    printf 'This is a SETUP / TOOLCHAIN condition, not a defect in your code.\n'
+    printf 'scripts/check exits 69 when a required tool (ShellCheck, actionlint,\n'
+    printf 'gitleaks, ...) is missing, and 64 on a bad invocation. The specific tool\n'
+    printf 'and its install command are named in the scripts/check output above\n'
+    printf '(for example: "brew install shellcheck").\n\n'
+    printf 'The push is refused because a gate that could not run is not a\n'
+    printf 'verified-green gate — allowing it would ship code the checks never\n'
+    printf 'actually inspected.\n\n'
+    printf 'Fix: install the tool named above, then re-run:  scripts/check --all\n'
+    printf 'Emergency bypass (skips the gate entirely):      git push --no-verify\n'
+  } >&2
+}
+
+# (1) A dirty working tree means `scripts/check --all` would test the tree, not the
+#     commits being pushed — the exact stale-receipt mismatch. Refuse it.
+if [[ -n "$(git status --porcelain)" ]]; then
+  refuse "the working tree is dirty, so the gate cannot reflect the committed state being pushed"
+  printf '\nUncommitted changes:\n' >&2
+  git status --short >&2
+  exit 1
+fi
+
+# (2) Run the full gate on the now-clean committed state. Capture the exit code so a
+#     genuine red gate (a code defect) is not confused with an un-runnable gate:
+#     scripts/check exits 69 (EX_UNAVAILABLE) when a required tool is missing and 64
+#     (EX_USAGE) on a bad invocation — both are setup conditions, not code defects.
+gate_status=0
+"$ROOT/scripts/check" --all || gate_status=$?
+if [[ "$gate_status" -ne 0 ]]; then
+  case "$gate_status" in
+    64|69) refuse_setup "$gate_status" ;;
+    *)     refuse "scripts/check --all is RED on the committed state (exit $gate_status)" ;;
+  esac
+  exit 1
+fi
+
+# (3) Whitespace-check every commit in the pushed range, not just the tip. Step (2)
+#     already covers HEAD via `git show --check HEAD`; this extends the same check
+#     to intermediate commits, which a range push would otherwise smuggle in
+#     (in PR #72, 043163a was red while the 22c5c39 tip was green).
+zero="$(git hash-object --stdin </dev/null | tr '0-9a-f' '0')"
+if [[ ${#refs[@]} -gt 0 ]]; then
+  for ref in "${refs[@]}"; do
+    read -r -a parts <<< "$ref"
+    if [[ ${#parts[@]} -lt 4 ]]; then
+      continue
+    fi
+    local_oid="${parts[1]}"
+    remote_oid="${parts[3]}"
+    if [[ "$local_oid" == "$zero" ]]; then
+      continue                                   # branch deletion: nothing to push
+    fi
+    if [[ "$remote_oid" == "$zero" ]]; then
+      rev_args=("$local_oid" --not --remotes)    # new branch: commits not already on a remote
+    else
+      rev_args=("$remote_oid..$local_oid")       # update: only the newly-pushed commits
+    fi
+    if ! commits="$(git rev-list "${rev_args[@]}" 2>/dev/null)"; then
+      refuse "could not compute the pushed commit range for ${parts[0]}"
+      exit 1
+    fi
+    if [[ -z "$commits" ]]; then
+      continue
+    fi
+    while IFS= read -r sha; do
+      if ! git show --check --format= "$sha" >/dev/null 2>&1; then
+        refuse "commit $sha in the pushed range has whitespace errors"
+        printf '\nOffending commit %s:\n' "$sha" >&2
+        git show --check --format= "$sha" >&2 || true
+        exit 1
+      fi
+    done <<< "$commits"
+  done
+fi
+
+printf 'pre-push: gate green on the committed state (%s); push allowed.\n' \
+  "$(git rev-parse --short HEAD)" >&2
+exit 0

@@ -6,6 +6,21 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Added
 
+- Governance: a `.githooks/pre-push` guard makes a stale gate receipt impossible to
+  push. It refuses a dirty working tree (so `scripts/check --all` reflects the
+  committed state, not an uncommitted mix), runs the full gate on that committed
+  state, and whitespace-checks every commit in the pushed range — not just the tip,
+  which is all `git show --check HEAD` covers, so the `043163a`-red/`22c5c39`-green
+  range that slipped through in PR #72 would now be refused. A missing required
+  tool (`scripts/check` exit 69) or bad invocation (64) is refused as a
+  setup/toolchain condition with its install remediation, not misreported as a
+  code defect. `--no-verify` bypasses
+  it for genuine emergencies, and `scripts/install-hooks` installs it alongside the
+  existing `pre-commit` hook (the new hook is added to the `scripts/check` lint set).
+  `AGENTS.md` gains the matching **"Receipts expire on the next mutation"** standing
+  commitment — mutate → stage → commit → **then** gate → report — including the
+  corollary that claims about another session's state are verified this turn, not
+  carried forward (#73).
 - Governance: restored `AGENTS.md` to full strength — the operating contract grew from
   9,130 bytes / 6 standing commitments to ~20,000 bytes / 14, porting every applicable
   standing rule from the `ecg_anomaly_detection` and `github-portfolio-modernization`
