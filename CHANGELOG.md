@@ -6,6 +6,12 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Added
 
+- Governance: backward-facing audit of closed v1.0 work (`docs/audits/2026-07-21-closed-work-audit.md`)
+  — reconstructs each in-scope closed issue's definition-of-done and verifies delivered work with
+  pasted command receipts; verdicts (Satisfied/Partial) with follow-up issues #60 (#7 dry-run does
+  not suppress brew/conda maintenance mutations), #61 (#11 timeout fires ~10x early and never reports
+  the timed_out state), #62 (#23 branch protection strict flag), and #64 (smoke-test intermediate
+  assertions are non-enforcing) for the confirmed gaps (#59).
 - Governance: layered operating contract for agent sessions — a lean, authoritative
   `AGENTS.md` (standing commitments, roles and the four gated actions, canonical
   flow, model/effort sizing, definition of done, local environment) plus a thin
