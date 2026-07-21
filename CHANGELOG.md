@@ -22,6 +22,9 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
   A `.gitattributes` rule (`artifacts/** -whitespace`) exempts the now-tracked session
   artifacts from the whitespace check, since their markdown hard-line-breaks (trailing
   double-spaces) are intentional and would otherwise trip `git show --check` (#70, #69).
+  The one-copy-paste-block rule in `AGENTS.md` was broadened from extracts/seeds to **every**
+  executor relay (seeds, handoff extracts, mid-flight redirects, addenda), with self-detecting
+  state headers and do-not lines first (#71).
 - Governance: backward-facing audit of closed v1.0 work (`docs/audits/2026-07-21-closed-work-audit.md`)
   — reconstructs each in-scope closed issue's definition-of-done and verifies delivered work with
   pasted command receipts; verdicts (Satisfied/Partial) with follow-up issues #60 (#7 dry-run does

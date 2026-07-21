@@ -160,10 +160,16 @@ The deeper PM playbook is `docs/PM-WORKFLOW.md`; these are the load-bearing habi
 - **Ground seed work before writing it.** A seed/spec is grounded in a tracked
   issue, current `main`, and the actual repo state read this session — never a stale
   assumption or a remembered shape. Verify the ground truth, then author.
-- **Extracts and the next seed ship as one copy-pasteable block.** A handoff extract
-  (what merged, what broke, links) and the seed prompt that follows it are delivered
-  as a single block the maintainer can copy in one motion, not prose scattered across
-  a message.
+- **Every executor relay ships as one copy-pasteable block.** Anything the maintainer
+  must hand to another session — a seed, a handoff extract, a mid-flight redirect, an
+  addendum — is delivered as a **single** fenced markdown block, copyable in one motion.
+  Never prose interleaved with fences, never split by commentary or horizontal rules.
+  The block opens by naming the state it assumes (branch, commit, what is already done)
+  so a stale or out-of-order paste is self-detecting; anything the executor must **not**
+  do goes in its first line, not its conclusion; verification commands and their expected
+  output travel inside it. Context for the maintainer goes outside and after the block,
+  and never contains an instruction the executor needs — what he copies is exactly what
+  the executor receives.
 - **Verify closure; execute it only when handed the lane.** The PM confirms a merge
   landed and issues closed by independent read-back; it runs the post-merge closure
   commands itself only when that execution work is explicitly handed to it.
