@@ -1,9 +1,9 @@
 # Continuity Walkthrough: Issue #45 - Goldilocks Label Schema
 
-**Issue:** #45  
-**Branch:** `feature/issue-45-label-schema`  
-**Labels:** `type:docs`, `effort:large`, `status:ready`, `area:governance`  
-**Milestone:** Phase 2 (infrastructure)  
+**Issue:** #45
+**Branch:** `feature/issue-45-label-schema`
+**Labels:** `type:docs`, `effort:large`, `status:ready`, `area:governance`
+**Milestone:** Phase 2 (infrastructure)
 **Tracking:** macOS System Health Roadmap Project
 
 ---
@@ -122,7 +122,7 @@ git branch -d feature/issue-45-label-schema
 git branch -dr origin/feature/issue-45-label-schema
 ```
 
-**Verify clean state:** 
+**Verify clean state:**
 - `git status` shows clean working tree
 - `git log --oneline main | head -1` shows squashed commit for #45
 - Issue #45 shows "closed" with "merged" marker
@@ -159,10 +159,10 @@ git branch -dr origin/feature/issue-45-label-schema
 
 ### Issues/PRs Retroactively Labeled
 
-**Open issues (11):** #45, #42, #37, #36, #35, #31, #13, #12, #11, #10, #8  
+**Open issues (11):** #45, #42, #37, #36, #35, #31, #13, #12, #11, #10, #8
 Each now has: area, priority, type, effort, status labels
 
-**Closed PRs (9 from Phase 1):** #43, #41, #39, #38, #33, #32, #30, #28, #27  
+**Closed PRs (9 from Phase 1):** #43, #41, #39, #38, #33, #32, #30, #28, #27
 Each now has: area, priority, type, effort, status labels (status:ready for all closed items)
 
 ---
