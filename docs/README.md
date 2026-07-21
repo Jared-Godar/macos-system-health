@@ -8,6 +8,10 @@
 
 - [Security and privacy audit](security/SECURITY-AUDIT.md) — publication findings, mitigations, and residual risks.
 
+## Architecture Decisions
+
+- [Architecture Decision Records (ADRs)](ADRs/) — design decisions and rationale behind system-health's architecture.
+
 ## Planning and release history
 
 - [v0.1.0 release notes](releases/v0.1.0.md) — initial public release features and validation.
