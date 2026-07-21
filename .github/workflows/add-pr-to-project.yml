@@ -46,57 +46,30 @@ jobs:
             const issueNumber = parseInt('${{ steps.extract.outputs.issue_number }}');
             const projectName = 'macOS System Health Roadmap';
 
-            // Query for the project by name
-            const projectsResult = await github.rest.repos.listProjects({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open'
-            });
-
-            const projects = projectsResult.data;
-            core.info(`Found ${projects.length} open projects`);
-
-            let projectId = null;
-            for (const proj of projects) {
-              core.debug(`Checking project: ${proj.name}`);
-              if (proj.name === projectName) {
-                // Convert project ID to GraphQL ID format
-                projectId = `PVT_${Buffer.from(proj.node_id).toString('base64')}`;
-                core.info(`Found project by name: ${projectName}`);
-                break;
-              }
-            }
-
-            if (!projectId) {
-              // Try GraphQL query as fallback
-              try {
-                const graphqlResult = await github.graphql(
-                  `query($owner:String!, $repo:String!) {
-                    repository(owner: $owner, name: $repo) {
-                      projectsV2(first: 10) {
-                        nodes {
-                          id
-                          title
-                        }
-                      }
+            // Query for the project by name and check if issue is in it
+            const projectsResult = await github.graphql(
+              `query($owner:String!, $repo:String!) {
+                repository(owner: $owner, name: $repo) {
+                  projectsV2(first: 10) {
+                    nodes {
+                      id
+                      title
                     }
-                  }`,
-                  {
-                    owner: context.repo.owner,
-                    repo: context.repo.repo
-                  }
-                );
-
-                for (const project of graphqlResult.repository.projectsV2.nodes) {
-                  core.debug(`GraphQL project: ${project.title}`);
-                  if (project.title === projectName) {
-                    projectId = project.id;
-                    core.info(`Found project via GraphQL: ${projectName} (${projectId})`);
-                    break;
                   }
                 }
-              } catch (err) {
-                core.warning(`GraphQL query failed: ${err.message}`);
+              }`,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              }
+            );
+
+            let projectId = null;
+            for (const project of projectsResult.repository.projectsV2.nodes) {
+              if (project.title === projectName) {
+                projectId = project.id;
+                core.info(`Found project: ${projectName}`);
+                break;
               }
             }
 
