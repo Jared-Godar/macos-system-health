@@ -37,6 +37,19 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 - Governance: Enable branch protection on main; require status checks before merge (#23).
 
+### Fixed
+
+- Governance: the "Auto-add PR to Project" workflow no longer reports a false
+  green when a PR is not actually boarded. It now authenticates with a
+  `PROJECT_METADATA_TOKEN` classic PAT to reach the user-owned "macOS System
+  Health Roadmap" project (Project #3) — which the default `GITHUB_TOKEN` cannot
+  see — adds the PR, reads membership back, and **fails the check (non-zero
+  exit)** if the secret is missing, the project cannot be resolved, or
+  membership cannot be confirmed. The previous workflow warned-and-skipped on
+  those paths and exited 0, so PRs could merge unboarded. Requires the
+  maintainer to add the `PROJECT_METADATA_TOKEN` repository secret; until then
+  the check correctly fails rather than false-passing (#57).
+
 ## [0.1.0] - 2026-06-30
 
 ### Added

@@ -1,135 +1,128 @@
 name: Auto-add PR to Project
+
+# The default GITHUB_TOKEN cannot see the maintainer's USER-OWNED
+# "macOS System Health Roadmap" project (Project #3), so this workflow
+# authenticates with PROJECT_METADATA_TOKEN — a *classic* PAT carrying the
+# `project` + `repo` scopes (fine-grained tokens cannot reach user-owned
+# Projects). It resolves the project, adds the PR, reads membership back, and
+# FAILS THE CHECK (non-zero exit) if the secret is missing, the project cannot
+# be resolved, or membership cannot be confirmed. There is deliberately no
+# warn-and-skip anywhere in the job: a green check here means the PR is
+# genuinely on the board.
+#
+# Pattern adapted from github-portfolio-modernization's PROJECT_METADATA_TOKEN
+# board automation (scripts/github/populate_project_item.py); scoped here to PR
+# membership only — issues are boarded by the PM at creation (see AGENTS.md).
 on:
   pull_request:
     types: [opened, reopened]
 
 permissions:
   contents: read
-  pull-requests: read
-  repository-projects: write
+
+concurrency:
+  group: add-pr-to-project-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
 
 jobs:
   add-to-project:
+    name: Add PR to macOS System Health Roadmap (Project #3)
+    # Fork PRs receive no repository secrets, so PROJECT_METADATA_TOKEN would
+    # resolve empty and the job could only fail for a reason an external
+    # contributor cannot fix. Restrict to same-repo PRs — the ones the board
+    # tracks. This is a scoping condition, not a silent skip of the gate.
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Extract issue number from PR
-        id: extract
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { data: pr } = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number,
-            });
+      - name: Add PR to the user-owned project and verify membership
+        env:
+          # A classic PAT (scopes: project, repo). Passed via env, never inline
+          # ${{ }} interpolation, so it cannot be injected into the shell.
+          GH_TOKEN: ${{ secrets.PROJECT_METADATA_TOKEN }}
+          PROJECT_OWNER: ${{ github.repository_owner }}
+          PROJECT_NUMBER: '3'
+          PROJECT_NAME: macOS System Health Roadmap
+          PR_NODE_ID: ${{ github.event.pull_request.node_id }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
 
-            const text = `${pr.title}\n${pr.body || ''}`;
-            const match = text.match(/(Fixes|Closes|Resolves)\s+#(\d+)/i);
+          # Fail loudly if the classic PAT secret is absent. Without it the
+          # default token cannot see the user-owned project — the exact
+          # false-green this gate exists to eliminate.
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::PROJECT_METADATA_TOKEN secret is not set. This workflow needs a classic PAT (scopes: project, repo) to reach the user-owned \"${PROJECT_NAME}\" project (#${PROJECT_NUMBER}). Add it under Settings > Secrets and variables > Actions and re-run. Failing loudly rather than skipping so the board-membership gap cannot silently reappear."
+            exit 1
+          fi
 
-            if (!match) {
-              core.info('No "Fixes/Closes/Resolves #N" found in PR title or body. Skipping project membership check.');
-              core.setOutput('issue_number', '');
-              return;
-            }
+          # GraphQL documents. These carry literal $variables (GraphQL, not
+          # shell) so they are single-quoted; SC2016 is intentionally disabled
+          # per-assignment because we do NOT want the shell to expand them.
+          # shellcheck disable=SC2016
+          resolve_query='query($owner: String!, $number: Int!) { user(login: $owner) { projectV2(number: $number) { id } } }'
+          # shellcheck disable=SC2016
+          add_query='mutation($project: ID!, $content: ID!) { addProjectV2ItemById(input: {projectId: $project, contentId: $content}) { item { id } } }'
+          # shellcheck disable=SC2016
+          readback_query='query($id: ID!) { node(id: $id) { ... on PullRequest { projectItems(first: 50) { nodes { project { id } } } } } }'
 
-            const issueNumber = match[2];
-            core.info(`Extracted issue number: ${issueNumber}`);
-            core.setOutput('issue_number', issueNumber);
+          # Bounded retry for transient network conditions (Defensive external
+          # calls): retry timeouts / 5xx a few times with backoff, fail fast on
+          # everything else. Prints the --jq result on success; on exhaustion
+          # emits a clear external-vs-defect message and returns non-zero.
+          graphql() {
+            local jq_filter="$1"; shift
+            local attempt=1 max=3 err out delay
+            err="$(mktemp)"
+            while true; do
+              if out="$(gh api graphql --jq "$jq_filter" "$@" 2>"$err")"; then
+                rm -f "$err"
+                printf '%s' "$out"
+                return 0
+              fi
+              if [ "$attempt" -lt "$max" ] && grep -Eqi 'timeout|timed out|connection reset|connection refused|temporarily unavailable|502|503|504' "$err"; then
+                delay="$(( attempt * 4 ))"
+                echo "::warning::Transient GitHub API failure (attempt ${attempt}/${max}); retrying in ${delay}s." >&2
+                sleep "$delay"
+                attempt="$(( attempt + 1 ))"
+                continue
+              fi
+              echo "::error::GitHub GraphQL call failed after ${attempt} attempt(s): $(tr '\n' ' ' <"$err"). A timeout/5xx is an external connectivity condition; otherwise verify the PROJECT_METADATA_TOKEN classic PAT carries the project + repo scopes." >&2
+              rm -f "$err"
+              return 1
+            done
+          }
 
-      - name: Check if issue is in project and add PR
-        if: steps.extract.outputs.issue_number != ''
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const issueNumber = parseInt('${{ steps.extract.outputs.issue_number }}');
-            const projectName = 'macOS System Health Roadmap';
+          # Resolve the USER-OWNED project's node id. The default GITHUB_TOKEN
+          # cannot see user-owned Projects; the classic PAT can.
+          project_id="$(graphql '.data.user.projectV2.id' \
+            -f query="${resolve_query}" \
+            -f owner="${PROJECT_OWNER}" \
+            -F number="${PROJECT_NUMBER}")"
 
-            // Query for the project by name and check if issue is in it
-            const projectsResult = await github.graphql(
-              `query($owner:String!, $repo:String!) {
-                repository(owner: $owner, name: $repo) {
-                  projectsV2(first: 10) {
-                    nodes {
-                      id
-                      title
-                    }
-                  }
-                }
-              }`,
-              {
-                owner: context.repo.owner,
-                repo: context.repo.repo
-              }
-            );
+          if [ -z "${project_id}" ] || [ "${project_id}" = "null" ]; then
+            echo "::error::Could not resolve project #${PROJECT_NUMBER} (\"${PROJECT_NAME}\") for user \"${PROJECT_OWNER}\". Confirm the project exists and the PROJECT_METADATA_TOKEN classic PAT carries the project scope. Failing the check rather than skipping."
+            exit 1
+          fi
+          echo "Resolved \"${PROJECT_NAME}\" (#${PROJECT_NUMBER}) -> ${project_id}"
 
-            let projectId = null;
-            for (const project of projectsResult.repository.projectsV2.nodes) {
-              if (project.title === projectName) {
-                projectId = project.id;
-                core.info(`Found project: ${projectName}`);
-                break;
-              }
-            }
+          # Add the PR to the board. Idempotent: re-adding an existing item
+          # returns that item, so a reopened PR is safe to re-run.
+          graphql '.data.addProjectV2ItemById.item.id' \
+            -f query="${add_query}" \
+            -f project="${project_id}" \
+            -f content="${PR_NODE_ID}" >/dev/null
+          echo "Add mutation issued for PR #${PR_NUMBER}."
 
-            if (!projectId) {
-              core.warning(`Project "${projectName}" not found. Skipping PR membership.`);
-              return;
-            }
+          # Read back: confirm the PR is now an item of THIS project. Never
+          # trust the mutation's exit status alone — verify by re-lookup.
+          member_ids="$(graphql '.data.node.projectItems.nodes[].project.id' \
+            -f query="${readback_query}" \
+            -f id="${PR_NODE_ID}")"
 
-            // Check if the linked issue is in the project
-            const issueResult = await github.graphql(
-              `query($owner:String!, $repo:String!, $number:Int!) {
-                repository(owner: $owner, name: $repo) {
-                  issue(number: $number) {
-                    id
-                    projectsV2(first: 10) {
-                      nodes {
-                        id
-                      }
-                    }
-                  }
-                }
-              }`,
-              {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                number: issueNumber
-              }
-            );
-
-            let issueInProject = false;
-            for (const proj of issueResult.repository.issue.projectsV2.nodes) {
-              if (proj.id === projectId) {
-                issueInProject = true;
-                break;
-              }
-            }
-
-            if (!issueInProject) {
-              core.info(`Issue #${issueNumber} is not in the "${projectName}" project. Skipping PR add.`);
-              return;
-            }
-
-            core.info(`Issue #${issueNumber} is in the project. Adding PR to project...`);
-
-            // Add the PR to the project using GraphQL mutation
-            const addResult = await github.graphql(
-              `mutation($projectId:ID!, $contentId:ID!) {
-                addProjectV2ItemById(input: {
-                  projectId: $projectId
-                  contentId: $contentId
-                }) {
-                  item {
-                    id
-                  }
-                }
-              }`,
-              {
-                projectId: projectId,
-                contentId: context.payload.pull_request.node_id
-              }
-            );
-
-            core.info(`Successfully added PR to project: ${addResult.addProjectV2ItemById.item.id}`);
+          if printf '%s\n' "${member_ids}" | grep -Fxq "${project_id}"; then
+            echo "Read-back confirmed: PR #${PR_NUMBER} is on \"${PROJECT_NAME}\" (#${PROJECT_NUMBER})."
+          else
+            echo "::error::PR #${PR_NUMBER} was NOT found on \"${PROJECT_NAME}\" (#${PROJECT_NUMBER}) after the add mutation. Board membership is UNCONFIRMED — failing the check rather than reporting a false green."
+            exit 1
+          fi
