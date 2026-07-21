@@ -13,6 +13,9 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
   pull requests, so a newly published Gitleaks rule or a secret predating
   the current ruleset is caught on a recurring cadence rather than only on
   the next code change (#20).
+- Log retention: configurable age/count-based cleanup via `SYSTEM_HEALTH_LOG_RETENTION_DAYS` and `SYSTEM_HEALTH_LOG_RETENTION_COUNT` environment variables in maintenance mode (#7).
+- Backup snapshot retention: configurable age/count-based cleanup for `Brewfile-*` and `conda-base-*.yml` files via `SYSTEM_HEALTH_BACKUP_RETENTION_DAYS` and `SYSTEM_HEALTH_BACKUP_RETENTION_COUNT` in maintenance mode (#24).
+- Dry-run mode for maintenance operations via `SYSTEM_HEALTH_DRY_RUN` environment variable; previews planned deletions without executing them (#7).
 
 ### Changed
 

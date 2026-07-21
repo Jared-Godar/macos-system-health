@@ -15,7 +15,7 @@ require() {
   }
 }
 
-SHELL_FILES=(bin/system-health bin/install-schedule bin/configure-email scripts/check scripts/install-hooks tests/smoke.sh .githooks/pre-commit)
+SHELL_FILES=(bin/system-health bin/install-schedule bin/configure-email scripts/check scripts/install-hooks lib/cleanup.sh tests/smoke.sh .githooks/pre-commit)
 
 printf '%s\n' 'Checking staged whitespace errors...'
 git diff --cached --check
