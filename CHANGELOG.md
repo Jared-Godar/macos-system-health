@@ -25,6 +25,7 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Per-tool enable/disable controls for Homebrew, Conda, and pip checks via configuration file at `~/.config/system-health/config.yaml` (#11).
 - Configurable command timeout (default: 30 seconds) to prevent scheduled runs from hanging indefinitely; timed-out commands report clear state separate from other failures (#11).
 - Four distinct command execution states: Skipped (tool disabled in config), Timed out (exceeded timeout), Warning (command succeeded with warnings), Failure (command failed) (#11).
+- JSON output format via `--format json` flag in report mode; schema versioning (v1.0) enables future evolution; structured checks, warnings, and issues arrays with tool-level metadata; all private paths redacted; text output remains default and unchanged (#10).
 
 ### Changed
 
