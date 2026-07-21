@@ -24,7 +24,12 @@ if [[ "$MODE" == --all ]]; then
   if git rev-parse --verify HEAD >/dev/null 2>&1; then git show --check --format= HEAD; fi
 fi
 printf '%s\n' 'Checking Bash syntax...'
-bash -n "${SHELL_FILES[@]}"
+# Thread "$BASH" (the interpreter running this script) through the sub-checks so the
+# whole gate uses ONE bash. In CI the entrypoint is `/bin/bash scripts/check --all`, which
+# pins every layer — this syntax check and the smoke run below — to the system Bash 3.2 the
+# project targets; a bare, PATH-resolved `bash` could be 5.x and would parse 3.2-incompatible
+# constructs (mapfile, declare -A, ${v^^}) without complaint, defeating this very check (#81).
+"$BASH" -n "${SHELL_FILES[@]}"
 printf '%s\n' 'Running ShellCheck...'
 require shellcheck
 shellcheck "${SHELL_FILES[@]}"
@@ -39,7 +44,7 @@ if command -v plutil >/dev/null 2>&1; then
 fi
 
 printf '%s\n' 'Running smoke tests...'
-tests/smoke.sh
+"$BASH" tests/smoke.sh   # same interpreter as the syntax check above, not smoke.sh's own env-bash shebang (#81)
 
 printf '%s\n' 'Scanning for secrets with Gitleaks...'
 require gitleaks

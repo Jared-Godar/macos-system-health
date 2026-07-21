@@ -370,6 +370,48 @@ mechanical items so compliance never depends on an agent remembering to:
 - Prefer macOS-compatible utilities and flags; do not assume GNU-specific behavior
   unless the required tool is installed and documented.
 
+### CI toolchain version contract (Issue #81)
+
+The `quality` gate targets a fixed toolchain so a green PR stays green unless the code
+changes. A cold-start session bumping any pin edits **only** the places named here — there
+is no automation that will remind anyone, so this record is the upkeep mechanism, not
+documentation of it.
+
+- **Bash 3.2 is the target** — macOS system `/bin/bash`, measured **3.2.57** on the
+  `macos-15` runner. CI runs the gate as `/bin/bash scripts/check --all`, and
+  `scripts/check` threads `"$BASH"` through its `bash -n` syntax check and its
+  `tests/smoke.sh` run, so every layer executes under 3.2 rather than a PATH-resolved bash
+  that could be 5.x. Before #81 this held only *incidentally* (the image happened to ship
+  no newer bash earlier on `PATH`); it is now explicit. **Do not "simplify" the workflow
+  back to `scripts/check --all`, nor the sub-checks back to bare `bash` — that silently
+  restores the drift #81 fixed.** A workflow step asserts `/bin/bash` is 3.2.x and fails
+  loudly if a future image changes it.
+- **CI is authoritative for 3.2; the local pre-push hook is not.** CI runs
+  `/bin/bash scripts/check --all`, so `$BASH` is 3.2.57 and the syntax check runs against
+  the target version. `.githooks/pre-push` invokes `scripts/check` through its
+  `#!/usr/bin/env bash` shebang, so on a machine with a newer Bash earlier on `PATH` its
+  syntax check runs under 5.x — meaning a 3.2-incompatible construct can pass the local
+  pre-push gate and fail CI. That asymmetry is intended (one consistent interpreter per
+  run, CI the stricter surface); the hook is deliberately **not** forced to `/bin/bash`. To
+  reproduce CI's check locally, run `/bin/bash scripts/check --all` explicitly.
+- **Pinned tools** — installed in `.github/workflows/lint.yml` from their official release
+  pages as `darwin_arm64` builds, each verified by a SHA-256 that **must be recomputed on
+  every bump**:
+  - `actionlint` **1.7.12** — <https://github.com/rhysd/actionlint/releases>
+  - `shellcheck` **0.11.0** — <https://github.com/koalaman/shellcheck/releases>
+  - `gitleaks` **8.30.1** — <https://github.com/gitleaks/gitleaks/releases>
+- **To bump a tool:** edit its version in the download URL and replace its `*_sha` in the
+  same step; recompute the checksum with `curl -fsSL <url> | shasum -a 256` (or download,
+  then `shasum -a 256 <file>`). Run `scripts/check --all` locally, then let CI confirm. A
+  stale checksum fails the `Install pinned quality tools` step loudly rather than drifting.
+- **Owner and cadence (a standing commitment, not an aspiration):** the maintainer
+  (**Jared-Godar**) owns these pins and reviews them **on CI failure or roughly quarterly**,
+  whichever comes first. `.github/dependabot.yml` covers the `github-actions` ecosystem
+  only — so `actions/checkout`'s SHA pin is bumped automatically, but these three
+  brew-replaced tools are **never** bumped for you.
+- **One home, not two:** this contract lives here for now; **#78 may relocate it to
+  `docs/governance/`** — move it, do not copy it.
+
 ## Operational cautions
 
 - **Always target the repository explicitly.** Every state-changing `gh` command
