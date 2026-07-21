@@ -82,6 +82,27 @@ with semantic versioning. Add a bullet under the appropriate `### Added`,
 section of [CHANGELOG.md](CHANGELOG.md) in the same pull request as your change,
 unless the change is trivial enough not to warrant one (say so in the PR).
 
+## Labels & Issue Classification
+
+Issues are labeled to enable filtering, dashboarding, and workflow tracking in
+GitHub Projects. The schema is documented in [.github/labels.json](.github/labels.json).
+
+**Required labels for all open issues:**
+
+- **AREA:** Component affected — `area:governance`, `area:reporting`, `area:scheduling`, `area:script`
+- **PRIORITY:** Urgency — `priority:high` (next milestone), `priority:medium` (worth doing), `priority:low` (defer freely)
+- **TYPE:** Work type — `type:feature`, `type:bug`, `type:docs`, `type:community-contribution`
+- **EFFORT:** Estimated size — `effort:small` (1–2 days), `effort:medium` (3–5 days), `effort:large` (1+ weeks)
+- **STATUS:** Workflow state — `status:ready` (no blockers), `status:blocked` (waiting on external input), `status:stalled` (waiting on review/decision)
+
+**Optional labels:**
+
+- **RISK:** Impact level — `risk:high` (security/data), `risk:medium` (workflow-affecting)
+- **CONFIDENCE:** Validation — `confidence:low` (needs research), `confidence:unconfirmed` (community-reported)
+- **HOUSEKEEPING:** Meta labels — `dependencies`, `duplicate`, `help-wanted`
+
+See `.github/labels.json` for complete schema and label combinations.
+
 ## Branch, pull request, and merge workflow
 
 1. Create a topic branch from an up-to-date `main`.
