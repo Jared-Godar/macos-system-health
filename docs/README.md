@@ -15,6 +15,7 @@
 ## Governance & PM Workflow
 
 - [PM Workflow & Governance](PM-WORKFLOW.md) — product manager role, artifact lifecycle, durable contracts, session responsibilities, and executor seed prompt pattern.
+- [GitHub Labels Schema](../.github/labels.json) — Goldilocks specification: area, priority, type, effort, status, risk, and confidence labels for filtering, dashboarding, and workflow tracking.
 
 ## Planning and release history
 

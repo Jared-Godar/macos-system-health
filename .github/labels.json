@@ -1,0 +1,257 @@
+{
+  "version": "1.0",
+  "description": "GitHub Labels Schema - Goldilocks specification for macos-system-health",
+  "schema": {
+    "area": {
+      "description": "Subsystem or component affected",
+      "values": ["governance", "reporting", "scheduling", "script"]
+    },
+    "priority": {
+      "description": "Urgency and business importance",
+      "values": ["high", "medium", "low"]
+    },
+    "type": {
+      "description": "Kind of work or change",
+      "values": ["feature", "bug", "docs", "community-contribution"]
+    },
+    "effort": {
+      "description": "Estimated engineering effort to complete",
+      "values": ["small", "medium", "large"]
+    },
+    "status": {
+      "description": "Current workflow or project state",
+      "values": ["ready", "blocked", "stalled"]
+    },
+    "risk": {
+      "description": "Potential impact or severity",
+      "values": ["high", "medium"]
+    },
+    "confidence": {
+      "description": "Confidence level and validation status",
+      "values": ["low", "unconfirmed"]
+    },
+    "housekeeping": {
+      "description": "Meta labels for workflow and maintenance",
+      "values": ["dependencies", "duplicate", "help-wanted"]
+    }
+  },
+  "labels": [
+    {
+      "name": "area:governance",
+      "description": "Labels, CHANGELOG, branch protection, PR/issue process",
+      "color": "5319e7",
+      "category": "area"
+    },
+    {
+      "name": "area:reporting",
+      "description": "Report/email output and formatting",
+      "color": "fbca04",
+      "category": "area"
+    },
+    {
+      "name": "area:scheduling",
+      "description": "LaunchAgent/cron scheduling infrastructure",
+      "color": "0e8a16",
+      "category": "area"
+    },
+    {
+      "name": "area:script",
+      "description": "Changes to bin/system-health or related script logic",
+      "color": "1d76db",
+      "category": "area"
+    },
+    {
+      "name": "priority:high",
+      "description": "Should land in the next milestone pass",
+      "color": "b60205",
+      "category": "priority"
+    },
+    {
+      "name": "priority:medium",
+      "description": "Worth doing, not urgent",
+      "color": "d4c5f9",
+      "category": "priority"
+    },
+    {
+      "name": "priority:low",
+      "description": "Nice to have, defer freely",
+      "color": "c5def5",
+      "category": "priority"
+    },
+    {
+      "name": "type:feature",
+      "description": "New feature or capability",
+      "color": "1F883D",
+      "category": "type"
+    },
+    {
+      "name": "type:bug",
+      "description": "Something isn't working",
+      "color": "D1242F",
+      "category": "type"
+    },
+    {
+      "name": "type:docs",
+      "description": "Documentation improvements",
+      "color": "0075ca",
+      "category": "type"
+    },
+    {
+      "name": "type:community-contribution",
+      "description": "Community-requested or community-driven task",
+      "color": "0e8a16",
+      "category": "type"
+    },
+    {
+      "name": "effort:small",
+      "description": "1–2 days work",
+      "color": "7FBA00",
+      "category": "effort"
+    },
+    {
+      "name": "effort:medium",
+      "description": "3–5 days work",
+      "color": "F2CC0C",
+      "category": "effort"
+    },
+    {
+      "name": "effort:large",
+      "description": "1+ weeks work",
+      "color": "FFA500",
+      "category": "effort"
+    },
+    {
+      "name": "status:ready",
+      "description": "Ready to start, no blockers",
+      "color": "0366d6",
+      "category": "status"
+    },
+    {
+      "name": "status:blocked",
+      "description": "Blocked on external dependency",
+      "color": "d73a4a",
+      "category": "status"
+    },
+    {
+      "name": "status:stalled",
+      "description": "In progress but waiting",
+      "color": "e99695",
+      "category": "status"
+    },
+    {
+      "name": "risk:high",
+      "description": "Security, data, production impact",
+      "color": "B60205",
+      "category": "risk"
+    },
+    {
+      "name": "risk:medium",
+      "description": "Affects workflow but contained",
+      "color": "FB8500",
+      "category": "risk"
+    },
+    {
+      "name": "confidence:low",
+      "description": "Needs validation or exploration",
+      "color": "A89968",
+      "category": "confidence"
+    },
+    {
+      "name": "confidence:unconfirmed",
+      "description": "Community-reported, unverified",
+      "color": "D4A574",
+      "category": "confidence"
+    },
+    {
+      "name": "dependencies",
+      "description": "Pull requests that update a dependency file",
+      "color": "0366d6",
+      "category": "housekeeping"
+    },
+    {
+      "name": "duplicate",
+      "description": "This issue or pull request already exists",
+      "color": "cfd3d7",
+      "category": "housekeeping"
+    },
+    {
+      "name": "help-wanted",
+      "description": "Extra attention is needed",
+      "color": "008672",
+      "category": "housekeeping"
+    },
+    {
+      "name": "bug",
+      "description": "[DEPRECATED] Use type:bug instead",
+      "color": "d73a4a",
+      "category": "deprecated",
+      "status": "archive"
+    },
+    {
+      "name": "enhancement",
+      "description": "[DEPRECATED] Use type:feature instead",
+      "color": "a2eeef",
+      "category": "deprecated",
+      "status": "archive"
+    },
+    {
+      "name": "documentation",
+      "description": "[DEPRECATED] Use type:docs instead",
+      "color": "0075ca",
+      "category": "deprecated",
+      "status": "archive"
+    },
+    {
+      "name": "good first issue",
+      "description": "[DEPRECATED] Use help-wanted instead",
+      "color": "7057ff",
+      "category": "deprecated",
+      "status": "archive"
+    },
+    {
+      "name": "question",
+      "description": "[DEPRECATED] Use issue comments instead",
+      "color": "d876e3",
+      "category": "deprecated",
+      "status": "archive"
+    },
+    {
+      "name": "invalid",
+      "description": "[DEPRECATED] Document in issue instead",
+      "color": "e4e669",
+      "category": "deprecated",
+      "status": "archive"
+    },
+    {
+      "name": "wontfix",
+      "description": "[DEPRECATED] Document decision in issue",
+      "color": "ffffff",
+      "category": "deprecated",
+      "status": "archive"
+    },
+    {
+      "name": "github_actions",
+      "description": "[DEPRECATED] Use PR description instead",
+      "color": "000000",
+      "category": "deprecated",
+      "status": "archive"
+    }
+  ],
+  "guidelines": {
+    "labeling_requirements": [
+      "All issues should have at least one area label",
+      "All issues should have one priority label (high, medium, or low)",
+      "All open issues should have one type label",
+      "Effort labels help with capacity planning and should be applied to all open issues",
+      "Status labels track workflow and should be updated as work progresses",
+      "Risk labels enable risk-aware prioritization and filtering",
+      "Confidence labels identify exploratory or unvalidated work"
+    ],
+    "label_combinations": {
+      "feature_ready": ["type:feature", "status:ready", "effort:X"],
+      "bug_blocked": ["type:bug", "status:blocked", "risk:Y"],
+      "exploratory": ["type:feature", "confidence:low", "status:ready"],
+      "security_incident": ["type:bug", "risk:high", "area:X"]
+    }
+  }
+}

@@ -21,6 +21,7 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Docs: Project tracking verification checklist in PR template (#36).
 - Docs: Architecture Decision Record (ADR 0001) documenting report and maintenance boundaries (#9).
 - Docs: PM workflow & governance documentation in `docs/PM-WORKFLOW.md` — artifact lifecycle, durable contracts, seed prompt pattern, and phase 1 lessons learned.
+- Governance: Goldilocks label schema for GitHub Projects dashboarding and filtering — 28 labels across area, priority, type, effort, status, risk, confidence, and housekeeping categories; complete durable schema in `.github/labels.json` (#45).
 
 ### Changed
 
