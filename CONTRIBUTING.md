@@ -120,7 +120,7 @@ Every pull request that links a tracked issue must be added to the
 
 **Verification checklist:**
 
-- [ ] PR links an issue using `Fixes #N` syntax
+- [ ] PR links an issue using `Fixes #N`, `Closes #N`, or `Resolves #N` syntax
 - [ ] Linked issue is in the "macOS System Health Roadmap" project
 - [ ] PR has been added to the project (check PR details sidebar)
 

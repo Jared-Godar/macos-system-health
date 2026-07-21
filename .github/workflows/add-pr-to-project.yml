@@ -26,15 +26,15 @@ jobs:
             });
 
             const text = `${pr.title}\n${pr.body || ''}`;
-            const match = text.match(/Fixes\s+#(\d+)/i);
+            const match = text.match(/(Fixes|Closes|Resolves)\s+#(\d+)/i);
 
             if (!match) {
-              core.info('No "Fixes #N" found in PR title or body. Skipping project membership check.');
+              core.info('No "Fixes/Closes/Resolves #N" found in PR title or body. Skipping project membership check.');
               core.setOutput('issue_number', '');
               return;
             }
 
-            const issueNumber = match[1];
+            const issueNumber = match[2];
             core.info(`Extracted issue number: ${issueNumber}`);
             core.setOutput('issue_number', issueNumber);
 
