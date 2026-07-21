@@ -1,0 +1,135 @@
+name: Auto-add PR to Project
+on:
+  pull_request:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+  repository-projects: write
+
+jobs:
+  add-to-project:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract issue number from PR
+        id: extract
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+
+            const text = `${pr.title}\n${pr.body || ''}`;
+            const match = text.match(/(Fixes|Closes|Resolves)\s+#(\d+)/i);
+
+            if (!match) {
+              core.info('No "Fixes/Closes/Resolves #N" found in PR title or body. Skipping project membership check.');
+              core.setOutput('issue_number', '');
+              return;
+            }
+
+            const issueNumber = match[2];
+            core.info(`Extracted issue number: ${issueNumber}`);
+            core.setOutput('issue_number', issueNumber);
+
+      - name: Check if issue is in project and add PR
+        if: steps.extract.outputs.issue_number != ''
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issueNumber = parseInt('${{ steps.extract.outputs.issue_number }}');
+            const projectName = 'macOS System Health Roadmap';
+
+            // Query for the project by name and check if issue is in it
+            const projectsResult = await github.graphql(
+              `query($owner:String!, $repo:String!) {
+                repository(owner: $owner, name: $repo) {
+                  projectsV2(first: 10) {
+                    nodes {
+                      id
+                      title
+                    }
+                  }
+                }
+              }`,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              }
+            );
+
+            let projectId = null;
+            for (const project of projectsResult.repository.projectsV2.nodes) {
+              if (project.title === projectName) {
+                projectId = project.id;
+                core.info(`Found project: ${projectName}`);
+                break;
+              }
+            }
+
+            if (!projectId) {
+              core.warning(`Project "${projectName}" not found. Skipping PR membership.`);
+              return;
+            }
+
+            // Check if the linked issue is in the project
+            const issueResult = await github.graphql(
+              `query($owner:String!, $repo:String!, $number:Int!) {
+                repository(owner: $owner, name: $repo) {
+                  issue(number: $number) {
+                    id
+                    projectsV2(first: 10) {
+                      nodes {
+                        id
+                      }
+                    }
+                  }
+                }
+              }`,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                number: issueNumber
+              }
+            );
+
+            let issueInProject = false;
+            for (const proj of issueResult.repository.issue.projectsV2.nodes) {
+              if (proj.id === projectId) {
+                issueInProject = true;
+                break;
+              }
+            }
+
+            if (!issueInProject) {
+              core.info(`Issue #${issueNumber} is not in the "${projectName}" project. Skipping PR add.`);
+              return;
+            }
+
+            core.info(`Issue #${issueNumber} is in the project. Adding PR to project...`);
+
+            // Add the PR to the project using GraphQL mutation
+            const addResult = await github.graphql(
+              `mutation($projectId:ID!, $contentId:ID!) {
+                addProjectV2ItemById(input: {
+                  projectId: $projectId
+                  contentId: $contentId
+                }) {
+                  item {
+                    id
+                  }
+                }
+              }`,
+              {
+                projectId: projectId,
+                contentId: context.payload.pull_request.node_id
+              }
+            );
+
+            core.info(`Successfully added PR to project: ${addResult.addProjectV2ItemById.item.id}`);

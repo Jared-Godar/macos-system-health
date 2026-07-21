@@ -29,3 +29,8 @@ scripts/check --all
 ## Documentation
 
 - [ ] User-facing documentation and changelog entries are updated, or this change does not require them.
+
+## Project Tracking
+
+- [ ] This PR has been added to the "macOS System Health Roadmap"
+      project (auto-verified by CI workflow)
