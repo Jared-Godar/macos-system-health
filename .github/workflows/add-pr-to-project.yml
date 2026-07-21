@@ -47,24 +47,56 @@ jobs:
             const projectName = 'macOS System Health Roadmap';
 
             // Query for the project by name
-            const { repository } = await github.graphql(`
-              query {
-                repository(owner: "${context.repo.owner}", name: "${context.repo.repo}") {
-                  projectsV2(first: 10) {
-                    nodes {
-                      id
-                      title
-                    }
-                  }
-                }
-              }
-            `);
+            const projectsResult = await github.rest.repos.listProjects({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open'
+            });
+
+            const projects = projectsResult.data;
+            core.info(`Found ${projects.length} open projects`);
 
             let projectId = null;
-            for (const project of repository.projectsV2.nodes) {
-              if (project.title === projectName) {
-                projectId = project.id;
+            for (const proj of projects) {
+              core.debug(`Checking project: ${proj.name}`);
+              if (proj.name === projectName) {
+                // Convert project ID to GraphQL ID format
+                projectId = `PVT_${Buffer.from(proj.node_id).toString('base64')}`;
+                core.info(`Found project by name: ${projectName}`);
                 break;
+              }
+            }
+
+            if (!projectId) {
+              // Try GraphQL query as fallback
+              try {
+                const graphqlResult = await github.graphql(
+                  `query($owner:String!, $repo:String!) {
+                    repository(owner: $owner, name: $repo) {
+                      projectsV2(first: 10) {
+                        nodes {
+                          id
+                          title
+                        }
+                      }
+                    }
+                  }`,
+                  {
+                    owner: context.repo.owner,
+                    repo: context.repo.repo
+                  }
+                );
+
+                for (const project of graphqlResult.repository.projectsV2.nodes) {
+                  core.debug(`GraphQL project: ${project.title}`);
+                  if (project.title === projectName) {
+                    projectId = project.id;
+                    core.info(`Found project via GraphQL: ${projectName} (${projectId})`);
+                    break;
+                  }
+                }
+              } catch (err) {
+                core.warning(`GraphQL query failed: ${err.message}`);
               }
             }
 
@@ -73,24 +105,29 @@ jobs:
               return;
             }
 
-            core.info(`Found project: ${projectName} (${projectId})`);
-
             // Check if the linked issue is in the project
-            const { issue } = await github.graphql(`
-              query {
-                issue(owner: "${context.repo.owner}", repository: "${context.repo.repo}", number: ${issueNumber}) {
-                  id
-                  projectsV2(first: 10) {
-                    nodes {
-                      id
+            const issueResult = await github.graphql(
+              `query($owner:String!, $repo:String!, $number:Int!) {
+                repository(owner: $owner, name: $repo) {
+                  issue(number: $number) {
+                    id
+                    projectsV2(first: 10) {
+                      nodes {
+                        id
+                      }
                     }
                   }
                 }
+              }`,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                number: issueNumber
               }
-            `);
+            );
 
             let issueInProject = false;
-            for (const proj of issue.projectsV2.nodes) {
+            for (const proj of issueResult.repository.issue.projectsV2.nodes) {
               if (proj.id === projectId) {
                 issueInProject = true;
                 break;
@@ -104,18 +141,22 @@ jobs:
 
             core.info(`Issue #${issueNumber} is in the project. Adding PR to project...`);
 
-            // Add the PR to the project
-            const { addProjectNextItem } = await github.graphql(`
-              mutation {
-                addProjectNextItem(input: {
-                  projectId: "${projectId}"
-                  contentId: "${context.payload.pull_request.node_id}"
+            // Add the PR to the project using GraphQL mutation
+            const addResult = await github.graphql(
+              `mutation($projectId:ID!, $contentId:ID!) {
+                addProjectV2ItemById(input: {
+                  projectId: $projectId
+                  contentId: $contentId
                 }) {
-                  projectNextItem {
+                  item {
                     id
                   }
                 }
+              }`,
+              {
+                projectId: projectId,
+                contentId: context.payload.pull_request.node_id
               }
-            `);
+            );
 
-            core.info(`Successfully added PR to project: ${addProjectNextItem.projectNextItem.id}`);
+            core.info(`Successfully added PR to project: ${addResult.addProjectV2ItemById.item.id}`);
