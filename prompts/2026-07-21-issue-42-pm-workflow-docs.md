@@ -19,14 +19,22 @@ Recommend **separate PR** — keeps #40 focused on committing artifacts, #42 foc
 ## Executor Seed Prompt (Copy This Block)
 
 ```fish
---model sonnet --effort medium "Read prompts/2026-07-21-pm-workflow-documentation.md fully.
+--model sonnet --effort medium "
+DURABLE CONTRACTS: Read and follow these before proceeding:
+1. CLAUDE.md (global user instructions — standing rules for ALL projects)
+2. AGENTS.md or equivalent (project-specific agent contracts)
+3. CONTRIBUTING.md (repo workflow, merge gates, changelog discipline)
+4. Memory files in .claude/projects/.../memory/ (cross-project lessons, gates)
 
-PROGRESS TRACKING: Use TodoWrite to create and update a task list:
-- Create immediately (match implementation checklist: file creation, 6 sections, links, markdown verification)
+Read prompts/2026-07-21-pm-workflow-documentation.md fully — detailed spec with 6 sections.
+
+PROGRESS TRACKING: Use TodoWrite immediately (before starting work):
+- Create list matching implementation checklist (file creation, 6 sections, links, verification)
 - Mark complete as you finish each section and verification step
 - Update after sections 1-3 and before final verification
+- PM will watch for blockers
 
-This is pure documentation: create docs/PM-WORKFLOW.md with 6 sections documenting PM artifact lifecycle, commit gates, durable contracts, session responsibilities, seed prompt pattern, and Phase 1 lessons learned. Link from docs/README.md and CONTRIBUTING.md. Update CHANGELOG.md. All markdown checks must pass before announcing merge readiness."
+Then proceed with the spec. This is pure documentation: create docs/PM-WORKFLOW.md with 6 sections. Link from docs/README.md and CONTRIBUTING.md. Update CHANGELOG.md. All markdown checks must pass before announcing merge readiness."
 ```
 
 ---
