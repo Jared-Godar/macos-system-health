@@ -6,6 +6,25 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Added
 
+- Governance: restored `AGENTS.md` to full strength — the operating contract grew from
+  9,130 bytes / 6 standing commitments to ~20,000 bytes / 14, porting every applicable
+  standing rule from the `ecg_anomaly_detection` and `github-portfolio-modernization`
+  baselines (do-what-is-written, session-handoff continuity, proactive walkthrough,
+  outside-sandbox permission check, multi-surface promise persistence, governance-docs-
+  negotiable, repository visibility & deletion hard rule, engineering discipline, and a
+  cluster of PM-thread/operational memory rules), resolved the self-contradictory PM lane
+  into one unambiguous statement, and documented the timestamped `artifacts/specs/` spec
+  path as the immutability mechanism with `prompts/` frozen as the historical record.
+  `artifacts/` is now tracked (removed from `.gitignore`) so specs/walkthroughs/handoffs
+  are visible, the spec-immutability `PreToolUse` hook moved from gitignored
+  `.claude/settings.local.json` into tracked `.claude/settings.json`, and root `CLAUDE.md`
+  gained specs-are-immutable-after-handoff as a fourth non-negotiable (#70, #69, #68).
+  A `.gitattributes` rule (`artifacts/** -whitespace`) exempts the now-tracked session
+  artifacts from the whitespace check, since their markdown hard-line-breaks (trailing
+  double-spaces) are intentional and would otherwise trip `git show --check` (#70, #69).
+  The one-copy-paste-block rule in `AGENTS.md` was broadened from extracts/seeds to **every**
+  executor relay (seeds, handoff extracts, mid-flight redirects, addenda), with self-detecting
+  state headers and do-not lines first (#71).
 - Governance: backward-facing audit of closed v1.0 work (`docs/audits/2026-07-21-closed-work-audit.md`)
   — reconstructs each in-scope closed issue's definition-of-done and verifies delivered work with
   pasted command receipts; verdicts (Satisfied/Partial) with follow-up issues #60 (#7 dry-run does

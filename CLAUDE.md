@@ -16,3 +16,9 @@ still applies and is not restated here.
 - **Model-tier flag.** A session cannot change its own model/effort mid-run. If it
   detects it is on a downgraded tier for the work (especially a PM/governance
   thread), it flags that to the maintainer immediately rather than pushing through.
+- **Specs are immutable after handoff.** Once a spec/plan/instruction file has been
+  handed to another session — or to the maintainer to launch — it is read-only.
+  Revisions go to a NEW timestamped file in `artifacts/specs/`, announced to the
+  maintainer, who decides whether to restart the work; never an in-place edit. A
+  `PreToolUse` hook hard-blocks `Write`/`Edit` under `prompts/**`; this rule is the
+  behavioral rule whose violation caused #68, and the hook covers only `prompts/**`.
