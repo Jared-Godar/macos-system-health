@@ -221,7 +221,7 @@ make the result better?*
   verify an executor's claims is core PM work and always permitted. Reading its
   **uncommitted** state never is.
 - **Executor session** owns code and repo mutations: branches, commits, pushes,
-  and PR creation, exactly per a spec in `prompts/`. It reads the durable
+  and PR creation, exactly per a spec in `artifacts/specs/`. It reads the durable
   contracts first (see "How these rules reach every session"), reports back at
   four checkpoints — branch ready, **PR created**, CI green, merge and cleanup —
   and escalates scope changes rather than improvising.
