@@ -12,6 +12,10 @@
 
 - [Architecture Decision Records (ADRs)](ADRs/) — design decisions and rationale behind system-health's architecture.
 
+## Governance & PM Workflow
+
+- [PM Workflow & Governance](PM-WORKFLOW.md) — product manager role, artifact lifecycle, durable contracts, session responsibilities, and executor seed prompt pattern.
+
 ## Planning and release history
 
 - [v0.1.0 release notes](releases/v0.1.0.md) — initial public release features and validation.

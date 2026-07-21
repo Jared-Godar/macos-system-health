@@ -140,5 +140,5 @@ the project needs.
   described in [SECURITY.md](SECURITY.md), not a public issue.
 
 See the [documentation index](docs/README.md), [roadmap](docs/planning/ROADMAP.md),
-and [issue execution plan](docs/planning/ISSUES.md) for where the project is
-headed.
+[issue execution plan](docs/planning/ISSUES.md), and [PM workflow & governance](docs/PM-WORKFLOW.md)
+for where the project is headed and how it is coordinated.
