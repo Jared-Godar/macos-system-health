@@ -108,6 +108,30 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Fixed
 
+- Governance/CI: the `quality` gate again verifies the committed executable bit of every file
+  a user runs directly, and the repository is no longer half-pinned (#83, #84). **(1) Mode
+  coverage (#83):** #81's interpreter pinning (`/bin/bash scripts/check --all`) removed the
+  last incidental check of any script's exec bit, so a script committed `100644` would pass CI
+  and only fail later, for a user running it from a fresh clone. `scripts/check` now asserts
+  committed modes via `git ls-files -s` (the index — what a clone gets — not the working tree):
+  `SHELL_FILES` is split into an explicit expected-executable list and a sourced list
+  (`lib/cleanup.sh`, correctly `100644`), each defined once and consumed as their union by the
+  syntax and ShellCheck passes. The assertion runs in both `--all` and `--staged`, fails before
+  the expensive passes, and names the offending file with its exact fix
+  (`git update-index --chmod=+x <file>`); the pre-commit hook now catches a mode regression at
+  commit time. **(2) Half-pinned toolchain (#84):** `full-history-scan.yml` installed its
+  toolchain through a rolling `brew install`, so after #81 the repo read as reproducible but
+  was not. The pinned versions and their SHA-256s move to a single new home,
+  `scripts/install-quality-tools` (`100755`, linted and mode-checked like the other scripts),
+  called by both workflows with a tool-name subset: `lint.yml` pins all three, while the weekly
+  scan pins `actionlint` + `shellcheck` and **deliberately floats `gitleaks`** — the weekly
+  scan's mission is catching newly published rules, and a floating linter would only add
+  authorless Monday-morning noise with no code change. The weekly scan keeps installing gitleaks
+  via Homebrew (with the same bounded retry and external-condition messaging), which is why its
+  `brew untap aws/tap` step stays live. #81's checksum-before-PATH fetch block is reused
+  verbatim, not rewritten. `AGENTS.md` § "CI toolchain version contract" now names the single
+  home, describes how the two workflows differ, and still points at #78 for the eventual move to
+  `docs/governance/`.
 - Governance/CI: the `quality` gate is now reproducible and demonstrably runs under the
   Bash version the project targets (#81). **(1) Unpinned toolchain:** `lint.yml` installed
   `actionlint`, `shellcheck`, and `gitleaks` via `brew install`, so every run got whatever
