@@ -51,8 +51,50 @@ assert_committed_modes() {
   fi
 }
 
+assert_spec_conformance() {
+  # Every tracked artifacts/specs/*.md must open with the durable-contracts block, so a spec copied
+  # from TEMPLATE.md inherits it (#67). TEMPLATE.md — the propagation source — must additionally
+  # verify closure via the GraphQL closingIssuesReferences field and must NOT carry the body
+  # text-match snippet that reports the broken `Closes #A, #B` form as correct (#99). Assertion 2 is
+  # template-scoped on purpose: the 9 historical specs are immutable records that legitimately still
+  # carry the old snippet, so gating them would produce a permanently red build with no legal fix
+  # (a handed-off spec cannot be rewritten). Reads the tracked set via git ls-files, so it behaves
+  # the same under --all and --staged and sees a freshly `git add`-ed file.
+  local file failed=0 seen_template=0
+  local template='artifacts/specs/TEMPLATE.md'
+  while IFS= read -r file; do
+    [[ -n "$file" ]] || continue
+    if ! grep -qE '^##[[:space:]]+0\..*Read the durable contracts first' "$file"; then
+      printf 'Spec-conformance check: %s is missing the "## 0. Read the durable contracts first" block.\n' "$file" >&2
+      failed=1
+    fi
+    if [[ "$file" == "$template" ]]; then
+      seen_template=1
+      if ! grep -qF 'closingIssuesReferences' "$file"; then
+        printf 'Spec-conformance check: %s must verify closure with the GraphQL closingIssuesReferences field.\n' "$file" >&2
+        failed=1
+      fi
+      if grep -qF 'body|test("Closes' "$file"; then
+        printf 'Spec-conformance check: %s must not use the body text-match closure snippet; use closingIssuesReferences (#99).\n' "$file" >&2
+        failed=1
+      fi
+    fi
+  done < <(git ls-files 'artifacts/specs/*.md')
+  if [[ "$seen_template" -ne 1 ]]; then
+    printf 'Spec-conformance check: %s must exist and be tracked (it is the spec propagation source).\n' "$template" >&2
+    failed=1
+  fi
+  if [[ "$failed" -ne 0 ]]; then
+    printf 'Spec-conformance check failed (see above); fix before committing.\n' >&2
+    exit 1
+  fi
+}
+
 printf '%s\n' 'Checking committed executable bits...'
 assert_committed_modes
+
+printf '%s\n' 'Checking spec conformance...'
+assert_spec_conformance
 
 printf '%s\n' 'Checking staged whitespace errors...'
 git diff --cached --check

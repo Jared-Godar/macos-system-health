@@ -316,6 +316,28 @@ The deeper PM playbook is `docs/PM-WORKFLOW.md`; these are the load-bearing habi
   output travel inside it. Context for the maintainer goes outside and after the block,
   and never contains an instruction the executor needs — what he copies is exactly what
   the executor receives.
+- **Every executor launch leaves a record, in the same block as the invocation.** When
+  the maintainer launches an executor from a spec, the launch is recorded as a comment on
+  the tracked issue at launch time — naming the spec path and a UTC timestamp — so any
+  successor session can tell in a single `gh issue view` that a launch happened. This is
+  what closes the absence-is-ambiguity gap (no PR, no branch, and a clean tree is the state
+  of both "never started" and "running, not yet committed"): the record exists *before* the
+  executor starts. **The owner is the maintainer, at launch** — the only owner with no
+  ambiguity window at all. The PM makes it zero marginal effort by shipping the
+  `gh issue comment` line **inside the same fenced block as the `claude` invocation**, so
+  the maintainer copies one block and both run from one paste:
+
+  ```fish
+  gh issue comment <N> -R Jared-Godar/macos-system-health \
+    --body "Launched — spec: artifacts/specs/<file>.md · "(date -u +%Y-%m-%dT%H:%M:%SZ)
+  claude --model <m> --effort <e> "Read and execute artifacts/specs/<file>.md in full."
+  ```
+
+  Delivering the launch-record command **separately** from the invocation reintroduces the
+  exact failure it exists to prevent: the comment can succeed while the `claude` invocation
+  never runs, and the issue then claims a launch that did not happen — the same
+  false-certainty class as the #68 incident. Shipped in one block, the two succeed or fail
+  together.
 - **Verify closure; execute it only when handed the lane.** The PM confirms a merge
   landed and issues closed by independent read-back; it runs the post-merge closure
   commands itself only when that execution work is explicitly handed to it.
@@ -339,7 +361,15 @@ check, require branches up to date, disallow force-pushes — is tracked in #23.
 4. **Open the PR with full metadata** — `Closes #N`; assignee; ≥1 `type:` and ≥1
    `area:` label (plus `priority:`/`effort:`/`status:` per the issue) from
    `.github/labels.json`; milestone; PR added to the "macOS System Health Roadmap"
-   project (auto-verified on open). Disclose every deliberate scope exclusion.
+   project (auto-verified on open). **A multi-issue PR repeats the closing keyword
+   before every number** — `Closes #A` / `Closes #B`, never `Closes #A, #B`, which
+   auto-closes only #A and silently leaves the rest open — **and the links are verified
+   with the GraphQL `closingIssuesReferences` field, never a body text-match.** A
+   text-match tests what was *typed*, so it returns true for the broken combined form
+   even though GitHub linked only the first issue; only `closingIssuesReferences`
+   reflects what GitHub actually parsed, and it lags a few seconds behind `gh pr edit`,
+   so re-query rather than trusting the first read. Disclose every deliberate scope
+   exclusion.
 5. **PM GREEN LIGHT.** From first push the PR is under merge **HOLD** until the PM
    thread's independent read-back completes and it announces **GREEN LIGHT: clear
    to squash-merge PR #N via the GUI**. GUI check status is never the authoritative
@@ -418,7 +448,10 @@ mechanical items so compliance never depends on an agent remembering to:
       all present in `.github/labels.json`.
 - [ ] CHANGELOG entry under `[Unreleased]`, or an explicit "no changelog entry
       needed" in the PR body.
-- [ ] Issue linked via `Closes #N`.
+- [ ] Issue linked via `Closes #N` — a multi-issue PR repeats the keyword per number
+      (`Closes #A` / `Closes #B`), verified via the GraphQL `closingIssuesReferences`
+      field, not a body text-match (which returns true for the broken combined form and
+      so cannot detect the failure).
 - [ ] Assignee, milestone, and project membership set.
 - [ ] Every deliberately-omitted or exempted field named explicitly.
 - [ ] Verification output shown for each claimed step — not asserted.

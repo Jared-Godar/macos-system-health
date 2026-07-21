@@ -152,7 +152,11 @@ See `.github/labels.json` for complete schema and label combinations.
 4. Open a pull request. The [pull request template](.github/pull_request_template.md)
    asks you to link the related issue, summarize the changes, confirm the safety
    and privacy checklist, and record the validation commands you ran — do not
-   paste private report contents.
+   paste private report contents. A PR that closes more than one issue must repeat
+   the closing keyword before each number (`Closes #A` / `Closes #B`, not
+   `Closes #A, #B`, which links only #A), and closure is verified with the GraphQL
+   `closingIssuesReferences` field, never a body text-match — a text-match returns
+   true for the broken combined form and cannot detect the failure.
 5. Verify project membership. Every pull request that links a tracked issue must
    be added to the "macOS System Health Roadmap" project (see "Project Tracking"
    below).
