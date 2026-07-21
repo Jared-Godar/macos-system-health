@@ -26,6 +26,10 @@ ISSUES=0
 WARNINGS=0
 REDACT_CONDA_BASE=""
 DRY_RUN="${SYSTEM_HEALTH_DRY_RUN:-false}"
+CHECK_HOMEBREW=true
+CHECK_CONDA=true
+CHECK_PIP=true
+COMMAND_TIMEOUT=30
 
 if ! [[ "$DISK_THRESHOLD" =~ ^[0-9]+$ ]] || (( DISK_THRESHOLD < 0 || DISK_THRESHOLD > 100 )); then
   echo "SYSTEM_HEALTH_DISK_THRESHOLD must be an integer from 0 through 100." >&2
@@ -45,14 +49,6 @@ source "$SCRIPT_DIR/lib/cleanup.sh"
 if ! validate_cleanup_config; then
   exit 64
 fi
-
-umask 077
-mkdir -p "$LOG_DIR" "$BACKUP_DIR"
-if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-  echo "Another system-health run appears active." >&2
-  exit 75
-fi
-trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
 
 redact_stream() {
   awk -v home="$HOME" -v conda_base="$REDACT_CONDA_BASE" '
@@ -77,6 +73,7 @@ warn() { WARNINGS=$((WARNINGS + 1)); log "WARNING: $*"; }
 fail() { ISSUES=$((ISSUES + 1)); log "ERROR: $*"; }
 have() { command -v "$1" >/dev/null 2>&1; }
 run_logged() { "$@" 2>&1 | redact_stream | tee -a "$LOG_FILE"; return "${PIPESTATUS[0]}"; }
+# shellcheck disable=SC2329
 capture_output() {
   local variable="$1" output status
   shift
@@ -85,6 +82,148 @@ capture_output() {
   printf -v "$variable" '%s' "$output"
   return "$status"
 }
+
+capture_output_timed() {
+  local variable="$1" timeout_secs="$2"
+  shift 2
+  local output status tmpfile pid
+  tmpfile="$(mktemp)"
+  # shellcheck disable=SC2064
+  trap "rm -f '$tmpfile'" RETURN
+
+  "$@" > "$tmpfile" 2>&1 &
+  pid=$!
+
+  local elapsed=0
+  while (( elapsed < timeout_secs )); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      wait "$pid"
+      status=$?
+      break
+    fi
+    sleep 0.1
+    elapsed=$(( elapsed + 1 ))
+  done
+
+  if kill -0 "$pid" 2>/dev/null; then
+    kill -TERM "$pid" 2>/dev/null || true
+    sleep 0.1
+    kill -KILL "$pid" 2>/dev/null || true
+    status=124
+    warn "Command timed out after ${timeout_secs}s."
+  fi
+
+  output="$(cat "$tmpfile")"
+  printf -v "$variable" '%s' "$output"
+  return "$status"
+}
+
+# shellcheck disable=SC2329
+execute_with_timeout() {
+  local timeout="$1" output_var="$2" status_var="$3" state_var="$4"
+  shift 4
+  local output status tmpfile
+  tmpfile="$(mktemp)"
+  trap 'rm -f "$tmpfile"' RETURN
+
+  if timeout "$timeout" "$@" > "$tmpfile" 2>&1; then
+    status=0
+    printf -v "$state_var" 'success'
+  else
+    status=$?
+    if (( status == 124 )); then
+      printf -v "$state_var" 'timeout'
+    else
+      printf -v "$state_var" 'failure'
+    fi
+  fi
+
+  output="$(cat "$tmpfile")"
+  printf -v "$output_var" '%s' "$output"
+  printf -v "$status_var" '%d' "$status"
+}
+
+load_config() {
+  local config_file="$HOME/.config/system-health/config.yaml"
+  local homebrew=true conda=true pip=true timeout=30
+  local in_checks_section=false in_execution_section=false
+
+  [[ -f "$config_file" ]] || return 0
+
+  while IFS= read -r line; do
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+
+    [[ -z "$line" || "$line" =~ ^# ]] && continue
+
+    if [[ "$line" == "checks:" ]]; then
+      in_checks_section=true
+      in_execution_section=false
+      continue
+    elif [[ "$line" == "execution:" ]]; then
+      in_checks_section=false
+      in_execution_section=true
+      continue
+    elif [[ "$line" =~ ^[a-zA-Z_] && ! "$line" =~ : ]]; then
+      in_checks_section=false
+      in_execution_section=false
+      continue
+    fi
+
+    if [[ "$in_checks_section" == true ]]; then
+      if [[ "$line" =~ ^[[:space:]]*homebrew:[[:space:]]*(true|false) ]]; then
+        homebrew="${line##*: }"
+      elif [[ "$line" =~ ^[[:space:]]*conda:[[:space:]]*(true|false) ]]; then
+        conda="${line##*: }"
+      elif [[ "$line" =~ ^[[:space:]]*pip:[[:space:]]*(true|false) ]]; then
+        pip="${line##*: }"
+      elif [[ "$line" =~ ^[[:space:]]*[a-zA-Z_].*: ]]; then
+        echo "Invalid YAML: unknown check setting" >&2
+        return 64
+      fi
+    elif [[ "$in_execution_section" == true ]]; then
+      if [[ "$line" =~ ^[[:space:]]*command_timeout_seconds:[[:space:]]*[0-9]+ ]]; then
+        timeout="${line##*: }"
+      elif [[ "$line" =~ ^[[:space:]]*[a-zA-Z_].*: ]]; then
+        echo "Invalid YAML: unknown execution setting" >&2
+        return 64
+      fi
+    fi
+  done < "$config_file"
+
+  printf '{"homebrew": %s, "conda": %s, "pip": %s, "timeout": %s}' \
+    "$homebrew" "$conda" "$pip" "$timeout"
+}
+
+parse_config() {
+  local config_json="$1"
+
+  if [[ "$config_json" =~ \"homebrew\":[[:space:]]*(true|false) ]]; then
+    CHECK_HOMEBREW="${BASH_REMATCH[1]}"
+  fi
+  if [[ "$config_json" =~ \"conda\":[[:space:]]*(true|false) ]]; then
+    CHECK_CONDA="${BASH_REMATCH[1]}"
+  fi
+  if [[ "$config_json" =~ \"pip\":[[:space:]]*(true|false) ]]; then
+    CHECK_PIP="${BASH_REMATCH[1]}"
+  fi
+  if [[ "$config_json" =~ \"timeout\":[[:space:]]*([0-9]+) ]]; then
+    COMMAND_TIMEOUT="${BASH_REMATCH[1]}"
+  fi
+}
+
+umask 077
+mkdir -p "$LOG_DIR" "$BACKUP_DIR"
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  echo "Another system-health run appears active." >&2
+  exit 75
+fi
+trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT INT TERM
+
+CONFIG_JSON="$(load_config)" || exit $?
+if [[ -n "$CONFIG_JSON" ]]; then
+  parse_config "$CONFIG_JSON"
+fi
 
 log "System Health Report"
 log "Started: $(date '+%Y-%m-%d %H:%M:%S %Z')"
@@ -99,72 +238,96 @@ if [[ "$DISK_PERCENT" =~ ^[0-9]+$ ]] && (( DISK_PERCENT >= DISK_THRESHOLD )); th
   warn "Root disk usage is at or above ${DISK_THRESHOLD}%."
 fi
 
-section "Homebrew"
-if have brew; then
-  BREW="$(command -v brew)"
-  log "Version: $("$BREW" --version | head -n 1)"
-  export HOMEBREW_NO_AUTO_UPDATE=1
-  if capture_output DOCTOR "$BREW" doctor; then
-    log_output "$DOCTOR"
+if [[ "$CHECK_HOMEBREW" == "true" ]]; then
+  section "Homebrew"
+  if have brew; then
+    BREW="$(command -v brew)"
+    log "Version: $("$BREW" --version | head -n 1)"
+    export HOMEBREW_NO_AUTO_UPDATE=1
+    if capture_output_timed DOCTOR "$COMMAND_TIMEOUT" "$BREW" doctor; then
+      log_output "$DOCTOR"
+    else
+      log_output "$DOCTOR"
+      [[ $? -ne 124 ]] && warn "Homebrew doctor reported a problem."
+    fi
+    if capture_output_timed OUTDATED "$COMMAND_TIMEOUT" "$BREW" outdated; then
+      if [[ -n "$OUTDATED" ]]; then log_output "$OUTDATED"; warn "Homebrew packages are outdated."; else log "No outdated Homebrew packages."; fi
+    else
+      log_output "$OUTDATED"
+      [[ $? -ne 124 ]] && warn "Could not check outdated Homebrew packages."
+    fi
+    if [[ "$MODE" == maintenance ]]; then
+      run_logged "$BREW" update || fail "brew update failed."
+      run_logged "$BREW" upgrade || fail "brew upgrade failed."
+      run_logged "$BREW" cleanup || warn "brew cleanup reported a problem."
+    fi
+    run_logged "$BREW" bundle dump --file="$BACKUP_DIR/Brewfile-$STAMP" --force || warn "Could not create Brewfile backup."
   else
-    log_output "$DOCTOR"
-    warn "Homebrew doctor reported a problem."
+    warn "Homebrew is not installed or not on PATH."
   fi
-  if capture_output OUTDATED "$BREW" outdated; then
-    if [[ -n "$OUTDATED" ]]; then log_output "$OUTDATED"; warn "Homebrew packages are outdated."; else log "No outdated Homebrew packages."; fi
-  else
-    log_output "$OUTDATED"
-    warn "Could not check outdated Homebrew packages."
-  fi
-  if [[ "$MODE" == maintenance ]]; then
-    run_logged "$BREW" update || fail "brew update failed."
-    run_logged "$BREW" upgrade || fail "brew upgrade failed."
-    run_logged "$BREW" cleanup || warn "brew cleanup reported a problem."
-  fi
-  run_logged "$BREW" bundle dump --file="$BACKUP_DIR/Brewfile-$STAMP" --force || warn "Could not create Brewfile backup."
 else
-  warn "Homebrew is not installed or not on PATH."
+  log "Homebrew check is disabled in configuration."
 fi
 
-section "Conda"
-if have conda; then
-  CONDA="$(command -v conda)"
-  log "Version: $("$CONDA" --version 2>&1)"
-  if ! capture_output REDACT_CONDA_BASE "$CONDA" info --base; then REDACT_CONDA_BASE=""; fi
-  if "$CONDA" doctor --help >/dev/null 2>&1; then run_logged "$CONDA" doctor || warn "conda doctor reported a problem."; else warn "conda doctor is unavailable in this Conda version."; fi
-  if capture_output CONDA_ENVS "$CONDA" env list; then
-    printf '%s\n' "$CONDA_ENVS" | awk '
-      /^#/ || NF == 0 { next }
-      $1 ~ /^\// { print "[unnamed environment]"; next }
-      { print $1 (($2 == "*") ? " *" : "") }
-    ' | tee -a "$LOG_FILE"
+if [[ "$CHECK_CONDA" == "true" ]]; then
+  section "Conda"
+  if have conda; then
+    CONDA="$(command -v conda)"
+    log "Version: $("$CONDA" --version 2>&1)"
+    if ! capture_output_timed REDACT_CONDA_BASE "$COMMAND_TIMEOUT" "$CONDA" info --base; then REDACT_CONDA_BASE=""; fi
+    if "$CONDA" doctor --help >/dev/null 2>&1; then
+      if capture_output_timed CONDA_DOCTOR "$COMMAND_TIMEOUT" "$CONDA" doctor; then
+        log_output "$CONDA_DOCTOR"
+      else
+        warn "conda doctor reported a problem."
+      fi
+    else
+      warn "conda doctor is unavailable in this Conda version."
+    fi
+    if capture_output_timed CONDA_ENVS "$COMMAND_TIMEOUT" "$CONDA" env list; then
+      printf '%s\n' "$CONDA_ENVS" | awk '
+        /^#/ || NF == 0 { next }
+        $1 ~ /^\// { print "[unnamed environment]"; next }
+        { print $1 (($2 == "*") ? " *" : "") }
+      ' | tee -a "$LOG_FILE"
+    else
+      [[ $? -ne 124 ]] && warn "Could not list Conda environments."
+    fi
+    if capture_output_timed CONDA_EXPORT "$COMMAND_TIMEOUT" "$CONDA" env export -n base --from-history; then
+      printf '%s\n' "$CONDA_EXPORT" > "$BACKUP_DIR/conda-base-$STAMP.yml"
+    else
+      log_output "$CONDA_EXPORT"
+      [[ $? -ne 124 ]] && warn "Could not back up the base environment."
+    fi
+    if [[ "$MODE" == maintenance ]]; then run_logged "$CONDA" clean --all --yes || warn "conda clean reported a problem."; fi
   else
-    warn "Could not list Conda environments."
+    warn "Conda is not installed or not on PATH."
   fi
-  if capture_output CONDA_EXPORT "$CONDA" env export -n base --from-history; then
-    printf '%s\n' "$CONDA_EXPORT" > "$BACKUP_DIR/conda-base-$STAMP.yml"
-  else
-    log_output "$CONDA_EXPORT"
-    warn "Could not back up the base environment."
-  fi
-  if [[ "$MODE" == maintenance ]]; then run_logged "$CONDA" clean --all --yes || warn "conda clean reported a problem."; fi
 else
-  warn "Conda is not installed or not on PATH."
+  log "Conda check is disabled in configuration."
 fi
 
-section "Python"
-if have python3; then
-  PYTHON="$(command -v python3)"
-  log "Version: $("$PYTHON" --version 2>&1)"
-  run_logged "$PYTHON" -m pip check || warn "pip found dependency conflicts."
-  if capture_output PIP_OUTDATED "$PYTHON" -m pip list --outdated --format=columns; then
-    if [[ "$PIP_OUTDATED" == *"Package"* && "$PIP_OUTDATED" == *"Latest"* ]]; then log_output "$PIP_OUTDATED"; warn "Python packages are outdated."; else log "No outdated Python packages detected."; fi
+if [[ "$CHECK_PIP" == "true" ]]; then
+  section "Python"
+  if have python3; then
+    PYTHON="$(command -v python3)"
+    log "Version: $("$PYTHON" --version 2>&1)"
+    if capture_output_timed PIP_CHECK "$COMMAND_TIMEOUT" "$PYTHON" -m pip check; then
+      log_output "$PIP_CHECK"
+    else
+      warn "pip found dependency conflicts."
+    fi
+    if capture_output_timed PIP_OUTDATED "$COMMAND_TIMEOUT" "$PYTHON" -m pip list --outdated --format=columns; then
+      if [[ "$PIP_OUTDATED" == *"Package"* && "$PIP_OUTDATED" == *"Latest"* ]]; then log_output "$PIP_OUTDATED"; warn "Python packages are outdated."; else log "No outdated Python packages detected."; fi
+    else
+      log_output "$PIP_OUTDATED"
+      [[ $? -ne 124 ]] && warn "Could not check outdated Python packages."
+    fi
   else
-    log_output "$PIP_OUTDATED"
-    warn "Could not check outdated Python packages."
+    warn "python3 is not installed or not on PATH."
   fi
 else
-  warn "python3 is not installed or not on PATH."
+  log "Python check is disabled in configuration."
 fi
 
 if [[ "$MODE" == maintenance ]]; then

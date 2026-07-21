@@ -37,6 +37,8 @@ Maintenance runs Homebrew update, upgrade, and cleanup plus Conda cache cleanup.
 
 ## Configuration
 
+### Environment Variables
+
 Settings are environment variables so no personal data needs to live in the repository.
 
 | Variable | Default | Purpose |
@@ -47,6 +49,31 @@ Settings are environment variables so no personal data needs to live in the repo
 | `SYSTEM_HEALTH_EMAIL` | unset | Optional report recipient |
 
 Never commit SMTP credentials. Configure authentication in `msmtp` using Keychain, 1Password, or another local secret store.
+
+### Per-Tool Controls and Timeout
+
+Create a configuration file at `~/.config/system-health/config.yaml` to control which checks run and set a command timeout:
+
+```yaml
+checks:
+  homebrew: true    # Enable/disable Homebrew checks
+  conda: true       # Enable/disable Conda checks
+  pip: true         # Enable/disable pip checks
+
+execution:
+  command_timeout_seconds: 30  # Timeout for external commands (default: 30)
+```
+
+**Defaults:** All checks are enabled by default when no configuration file is present. The timeout default is conservative (30 seconds) and will not affect normal execution.
+
+Example: Disable Conda checks while keeping Homebrew and pip enabled:
+
+```yaml
+checks:
+  homebrew: true
+  conda: false
+  pip: true
+```
 
 To configure local and scheduled delivery through a read-only 1Password service account, provide the recipient and an existing 1Password secret reference:
 

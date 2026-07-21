@@ -342,6 +342,60 @@ test_cleanup_redaction_in_output() {
   assert_contains "$case_dir/output" '[home]'
 }
 
+test_config_disabled_tool_not_executed() {
+  local case_dir="$TMP_ROOT/config_disabled"
+  mkdir -p "$case_dir/home/.config/system-health" "$case_dir/tmp" "$case_dir/stubs"
+  make_stubs "$case_dir/stubs"
+  : > "$case_dir/calls.log"
+
+  cat > "$case_dir/home/.config/system-health/config.yaml" <<'CONFIG'
+checks:
+  homebrew: false
+  conda: true
+  pip: true
+CONFIG
+
+  HOME="$case_dir/home" TMPDIR="$case_dir/tmp" PATH="$case_dir/stubs:/usr/bin:/bin" \
+  CALL_LOG="$case_dir/calls.log" SYSTEM_HEALTH_LOG_DIR="$case_dir/logs" \
+    "$ROOT/bin/system-health" report > "$case_dir/output" 2>&1
+
+  assert_not_contains "$case_dir/calls.log" 'brew --version'
+  assert_contains "$case_dir/output" 'Homebrew check is disabled'
+}
+
+test_config_invalid_yaml_fails_early() {
+  local case_dir="$TMP_ROOT/config_invalid"
+  mkdir -p "$case_dir/home/.config/system-health" "$case_dir/tmp" "$case_dir/stubs"
+  make_stubs "$case_dir/stubs"
+  : > "$case_dir/calls.log"
+
+  cat > "$case_dir/home/.config/system-health/config.yaml" <<'CONFIG'
+checks:
+  homebrew: [invalid yaml here
+CONFIG
+
+  HOME="$case_dir/home" TMPDIR="$case_dir/tmp" PATH="$case_dir/stubs:/usr/bin:/bin" \
+  CALL_LOG="$case_dir/calls.log" SYSTEM_HEALTH_LOG_DIR="$case_dir/logs" \
+    "$ROOT/bin/system-health" report > "$case_dir/output" 2>&1
+
+  assert_contains "$case_dir/output" 'Invalid YAML'
+}
+
+test_config_default_behavior_all_enabled() {
+  local case_dir="$TMP_ROOT/config_default"
+  mkdir -p "$case_dir/home" "$case_dir/tmp" "$case_dir/stubs"
+  make_stubs "$case_dir/stubs"
+  : > "$case_dir/calls.log"
+
+  HOME="$case_dir/home" TMPDIR="$case_dir/tmp" PATH="$case_dir/stubs:/usr/bin:/bin" \
+  CALL_LOG="$case_dir/calls.log" SYSTEM_HEALTH_LOG_DIR="$case_dir/logs" \
+    "$ROOT/bin/system-health" report > "$case_dir/output" 2>&1
+
+  assert_contains "$case_dir/calls.log" 'brew --version'
+  assert_contains "$case_dir/calls.log" 'conda --version'
+  assert_contains "$case_dir/calls.log" 'python3 --version'
+}
+
 run_test test_report_boundary_and_redaction
 run_test test_maintenance_boundary
 run_test test_failed_check_is_not_outdated
@@ -356,6 +410,9 @@ run_test test_cleanup_invalid_config
 run_test test_cleanup_preserves_non_matching_logs
 run_test test_cleanup_backup_patterns
 run_test test_cleanup_redaction_in_output
+run_test test_config_disabled_tool_not_executed
+run_test test_config_invalid_yaml_fails_early
+run_test test_config_default_behavior_all_enabled
 
 printf '%s passed; %s failed\n' "$PASS" "$FAIL"
 (( FAIL == 0 ))
