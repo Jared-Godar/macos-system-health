@@ -69,3 +69,11 @@ temp/
 coverage/
 test-results/
 *.tap
+
+# Session artifacts (walkthroughs, handoffs, continuity docs)
+artifacts/
+artifacts/walkthroughs/
+artifacts/session-handoffs/
+
+# Temporary git worktrees
+.claude/worktrees/
