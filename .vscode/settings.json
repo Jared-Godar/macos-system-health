@@ -1,0 +1,13 @@
+{
+  "python.defaultInterpreterPath": "python3",
+  "python.terminal.activateEnvironment": false,
+  "files.associations": {
+    "bin/*": "shellscript",
+    "scripts/*": "shellscript",
+    ".githooks/*": "shellscript"
+  },
+  "[markdown]": {
+    "files.trimTrailingWhitespace": false
+  },
+  "files.eol": "\n"
+}

@@ -137,6 +137,17 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
   those paths and exited 0, so PRs could merge unboarded. Requires the
   maintainer to add the `PROJECT_METADATA_TOKEN` repository secret; until then
   the check correctly fails rather than false-passing (#57).
+- Tooling: opening this repo in VS Code no longer raises a Python interpreter
+  warning. A User-scope `python.defaultInterpreterPath` pointed at
+  `${workspaceFolder}/.venv/bin/python`, which resolves in other repos but not
+  here — this is a Bash-only project with no `.venv`. `.gitignore` now negates
+  `.vscode/settings.json` (route A: fix the repository, not one machine — see
+  #80), and a tracked `.vscode/settings.json` overrides the interpreter setting
+  to `"python3"` (PATH-resolved, no hardcoded machine path), disables Python
+  environment activation in terminals, maps the seven extensionless Bash
+  scripts to `shellscript`, disables Markdown trailing-whitespace trimming to
+  protect the intentional hard line breaks `.gitattributes` already exempts
+  under `artifacts/**`, and pins line endings to `\n` (#80).
 
 ## [0.1.0] - 2026-06-30
 
