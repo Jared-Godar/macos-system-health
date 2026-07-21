@@ -6,6 +6,15 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Added
 
+- Governance: `AGENTS.md` gains seven session-conduct standing commitments that
+  previously lived only in PM agent memory and were unreachable by executor,
+  cold-start, or cloud sessions — **answer the question asked**, **keep progress
+  visible and name the blocker** (reconciled with the existing HOLD/GREEN LIGHT
+  merge-signal wording rather than duplicating it), **quantify estimates and
+  caveats**, **estimates are the maintainer's decision inputs, not arguments for
+  a preference**, **never touch in-flight executor work**, **propose lane
+  deviations and await approval** (with both the no-permission-needed and
+  propose-and-wait lists), and **the lane fails in both directions** (#77).
 - Governance: a `.githooks/pre-push` guard makes a stale gate receipt impossible to
   push. It refuses a dirty working tree (so `scripts/check --all` reflects the
   committed state, not an uncommitted mix), runs the full gate on that committed
