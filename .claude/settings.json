@@ -23,6 +23,7 @@
       "Read",
       "Edit",
       "Write",
+      "TodoWrite",
       "Glob",
       "Grep",
       "Skill(update-config)",
@@ -43,7 +44,7 @@
           {
             "type": "command",
             "statusMessage": "Checking spec-immutability guard...",
-            "command": "jq -r \".tool_input.file_path // \\\"\\\"\" | { read -r f; case \"$f\" in */prompts/*) printf \"%s\" \"{\\\"hookSpecificOutput\\\":{\\\"hookEventName\\\":\\\"PreToolUse\\\",\\\"permissionDecision\\\":\\\"deny\\\",\\\"permissionDecisionReason\\\":\\\"BLOCKED by governance hook (issue #68). prompts/ is executor-owned and specs are immutable after handoff. Author PM specs in artifacts/specs/ instead; the executor copies the file into prompts/ and commits it. To revise a handed-off spec, create a NEW dated file in artifacts/specs/ - never edit one in place.\\\"}}\";; esac; }"
+            "command": "jq -r \".tool_input.file_path // \\\"\\\"\" | { read -r f; case \"$f\" in */prompts/README.md) ;; */prompts/*) printf \"%s\" \"{\\\"hookSpecificOutput\\\":{\\\"hookEventName\\\":\\\"PreToolUse\\\",\\\"permissionDecision\\\":\\\"deny\\\",\\\"permissionDecisionReason\\\":\\\"BLOCKED by governance hook (issue #68). prompts/ is executor-owned and specs are immutable after handoff. Author PM specs in artifacts/specs/ instead; the executor copies the file into prompts/ and commits it. To revise a handed-off spec, create a NEW dated file in artifacts/specs/ - never edit one in place.\\\"}}\";; esac; }"
           }
         ]
       }

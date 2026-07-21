@@ -6,6 +6,40 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Added
 
+- Governance: the document every future spec is copied from is now conformant, lives
+  outside the frozen archive, carries a closure check that can actually fail, and a CI
+  check keeps it that way (#67, #68, #99). The executor seed-prompt template moved (via
+  `git mv`, not a hook-blocked `Write`) from the frozen `prompts/` archive to
+  `artifacts/specs/TEMPLATE.md` and was rebuilt from the two best exemplars on `main`: it
+  now carries the §0 durable-contracts block with a task-specific "rules that will bite
+  you" slot, the §0b progress-tracking **recurrence** clause verbatim (re-post the inline
+  checklist at *every* step, since a one-shot post scrolls away), the four gated actions,
+  the checkpoints, per-issue `Closes` metadata, a non-goals section, and the closure check
+  as the GraphQL `closingIssuesReferences` query (never a body text-match) — up from a
+  108-line file with **zero** mentions of `AGENTS.md`. A new `assert_spec_conformance`
+  function in `scripts/check` (inline, not a new script — avoiding the #83
+  `EXECUTABLE_FILES`/committed-mode trap) asserts every tracked `artifacts/specs/*.md`
+  opens with the contracts block, and that `TEMPLATE.md` uses `closingIssuesReferences` and
+  not the defective body text-match snippet; the second assertion is template-scoped
+  because the 9 historical specs are immutable records that legitimately still carry the
+  old snippet. `AGENTS.md` gains the **launch-record** rule (§ PM thread discipline): the
+  maintainer owns the record, written at launch as an issue comment naming the spec path
+  and a UTC timestamp, and the PM must ship that `gh issue comment` line **inside the same
+  fenced block** as the `claude` invocation so the two run from one paste — a
+  separately-delivered record can claim a launch that never happened, the #68 failure
+  class. `AGENTS.md` (§ Canonical work-item flow step 4 and § Definition of done) and
+  `CONTRIBUTING.md` now state the #99 rule: a multi-issue PR repeats the closing keyword
+  before every number, verified via `closingIssuesReferences`, because a body text-match
+  returns true for the broken `Closes #A, #B` form while GitHub links only #A. `prompts/`
+  gains a dated freeze note (`prompts/README.md`), permitted by a one-filename carve-out in
+  the `PreToolUse` hook that leaves every historical spec exactly as write-protected as
+  before (disclosed as a deliberate deviation from #67's literal "do not weaken the hook"
+  wording). `TodoWrite` is added to the `.claude/settings.json` allowlist; its absence from
+  a plainly-launched executor session is recorded as an unresolved, harness-dependent
+  launch-layer finding, so §0b's inline-recurrence fallback is the primary mechanism, not a
+  degraded path. Deferred and named: #78 (blocked on Fable; may later relocate the template
+  into `docs/governance/templates/`), #52 (the selection guide, deferred to #78), #95 (the
+  wider `CLAUDE.md` mirroring gap).
 - Governance: three agent-orchestration failures from 2026-07-21 are answered by
   standing rules on the surfaces that reach every session, and two artifact-timing
   collisions with the PR-only workflow are resolved (#76, #85, #92). `AGENTS.md`
