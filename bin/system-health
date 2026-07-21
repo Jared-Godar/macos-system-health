@@ -25,12 +25,26 @@ LOCK_DIR="${TMPDIR:-/tmp}/system-health-${UID}.lock"
 ISSUES=0
 WARNINGS=0
 REDACT_CONDA_BASE=""
+DRY_RUN="${SYSTEM_HEALTH_DRY_RUN:-false}"
 
 if ! [[ "$DISK_THRESHOLD" =~ ^[0-9]+$ ]] || (( DISK_THRESHOLD < 0 || DISK_THRESHOLD > 100 )); then
   echo "SYSTEM_HEALTH_DISK_THRESHOLD must be an integer from 0 through 100." >&2
   exit 64
 fi
 case "$MAIL_TO" in *$'\n'*|*$'\r'*) echo "SYSTEM_HEALTH_EMAIL must not contain line breaks." >&2; exit 64 ;; esac
+
+# Source cleanup library and validate configuration before any work begins.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ ! -f "$SCRIPT_DIR/lib/cleanup.sh" ]]; then
+  echo "Failed to find cleanup library at $SCRIPT_DIR/lib/cleanup.sh" >&2
+  exit 64
+fi
+# shellcheck source=lib/cleanup.sh
+source "$SCRIPT_DIR/lib/cleanup.sh"
+
+if ! validate_cleanup_config; then
+  exit 64
+fi
 
 umask 077
 mkdir -p "$LOG_DIR" "$BACKUP_DIR"
@@ -151,6 +165,20 @@ if have python3; then
   fi
 else
   warn "python3 is not installed or not on PATH."
+fi
+
+if [[ "$MODE" == maintenance ]]; then
+  section "Cleanup"
+  DRY_RUN_INT=0
+  if [[ "$DRY_RUN" == true || "$DRY_RUN" == 1 ]]; then
+    DRY_RUN_INT=1
+    log "Dry-run mode enabled; listing planned deletions without executing them."
+  fi
+  cleanup_logs "$LOG_DIR" "$DRY_RUN_INT" log_output
+  cleanup_backups "$BACKUP_DIR" "$DRY_RUN_INT" log_output
+  if (( DRY_RUN_INT )); then
+    log "Cleanup completed in dry-run mode; no files were actually deleted."
+  fi
 fi
 
 if [[ -n "$MAIL_TO" ]]; then
