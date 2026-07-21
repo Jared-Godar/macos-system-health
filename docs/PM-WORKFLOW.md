@@ -1,5 +1,8 @@
 # PM Workflow & Governance
 
+> `AGENTS.md` at the repo root is the authoritative operating contract; this
+> document is the deeper PM playbook.
+
 This document describes the Product Manager role in this project: how to structure work, create durable specifications, coordinate with executors, and maintain clean governance state. It serves as both a reference for executors and a checklist for PM sessions.
 
 ---

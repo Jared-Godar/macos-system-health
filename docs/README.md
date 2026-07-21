@@ -14,6 +14,7 @@
 
 ## Governance & PM Workflow
 
+- [Operating contract for agent sessions](../AGENTS.md) — the authoritative, binding contract for every PM, executor, and cloud/cold-start agent session: standing commitments, roles and the four gated actions, canonical flow, model sizing, and definition of done.
 - [PM Workflow & Governance](PM-WORKFLOW.md) — product manager role, artifact lifecycle, durable contracts, session responsibilities, and executor seed prompt pattern.
 - [GitHub Labels Schema](../.github/labels.json) — Goldilocks specification: area, priority, type, effort, status, risk, and confidence labels for filtering, dashboarding, and workflow tracking.
 
