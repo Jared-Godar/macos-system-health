@@ -45,6 +45,25 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Fixed
 
+- Tests: `tests/smoke.sh` now enforces **every** assertion, not just each test's
+  last statement. `run_test` invoked each test in an `if` condition, which
+  suppressed `set -e` across the whole test body, so a failing intermediate
+  `assert_contains` / `assert_not_contains` only exited the helper and the test's
+  result was whatever its final statement returned — every non-final assertion was
+  decorative. The assert helpers now raise a per-test failure flag that `run_test`
+  checks at test end, so any failed assertion deterministically fails its test and
+  the tally. A self-test (`test_harness_enforces_intermediate_assertions`) runs a
+  deliberately-broken test through the harness and asserts it is reported `not ok`,
+  guarding against regression (#64).
+- Redaction: `redact_stream` no longer crashes and silently drops output lines
+  when the captured Conda base path contains a newline. It passed the redaction
+  needles via `awk -v`, which parses the value like a string literal and aborts
+  with "newline in string" on an embedded newline; because the Conda base is
+  captured with `2>&1`, any stderr from `conda info --base` made it multiline and
+  corrupted every subsequently-redacted line (including maintenance dry-run
+  previews). The needles are now passed through the environment (`ENVIRON`), which
+  is read verbatim, so redaction can never crash regardless of needle content.
+  Surfaced by the now-enforcing smoke test above (#64).
 - Governance: the "Auto-add PR to Project" workflow no longer reports a false
   green when a PR is not actually boarded. It now authenticates with a
   `PROJECT_METADATA_TOKEN` classic PAT to reach the user-owned "macOS System

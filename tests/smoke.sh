@@ -7,11 +7,17 @@ trap 'rm -rf "$TMP_ROOT"' EXIT INT TERM
 
 PASS=0
 FAIL=0
+# Per-test failure flag. run_test resets it to 0 before each test; the assert_*
+# helpers raise it on failure. This is what makes *intermediate* assertions
+# enforcing: a failing assert_* only exits the helper (errexit is suppressed
+# while run_test invokes the test body), but the raised flag is checked at test
+# end, so the test fails regardless of what its last statement happens to return.
+CURRENT_TEST_FAILED=0
 
 pass() { PASS=$((PASS + 1)); printf 'ok - %s\n' "$1"; }
 fail() { FAIL=$((FAIL + 1)); printf 'not ok - %s\n' "$1" >&2; }
-assert_contains() { grep -Fq "$2" "$1" || { printf 'Expected %s to contain: %s\n' "$1" "$2" >&2; return 1; }; }
-assert_not_contains() { ! grep -Fq "$2" "$1" || { printf 'Expected %s not to contain: %s\n' "$1" "$2" >&2; return 1; }; }
+assert_contains() { grep -Fq "$2" "$1" || { printf 'Expected %s to contain: %s\n' "$1" "$2" >&2; CURRENT_TEST_FAILED=1; return 1; }; }
+assert_not_contains() { ! grep -Fq "$2" "$1" || { printf 'Expected %s not to contain: %s\n' "$1" "$2" >&2; CURRENT_TEST_FAILED=1; return 1; }; }
 
 make_stubs() {
   local stub_dir="$1"
@@ -24,7 +30,7 @@ STUB
 
   cat > "$stub_dir/brew" <<'STUB'
 #!/usr/bin/env bash
-printf 'brew %s\n' "$*" >> "$CALL_LOG"
+printf 'brew %s\n' "$*" >> "${CALL_LOG:-/dev/null}"
 case "${1:-}" in
   --version) echo 'Homebrew 4.0.0' ;;
   doctor) printf 'Your system is ready to brew.\nCache: %s/Library/Caches/Homebrew\n' "$HOME" ;;
@@ -42,7 +48,7 @@ STUB
 
   cat > "$stub_dir/conda" <<'STUB'
 #!/usr/bin/env bash
-printf 'conda %s\n' "$*" >> "$CALL_LOG"
+printf 'conda %s\n' "$*" >> "${CALL_LOG:-/dev/null}"
 case "$*" in
   '--version') echo 'conda 25.1.0' ;;
   'info --base') echo '/Users/private/miniforge3' ;;
@@ -58,7 +64,7 @@ STUB
 
   cat > "$stub_dir/python3" <<'STUB'
 #!/usr/bin/env bash
-printf 'python3 %s\n' "$*" >> "$CALL_LOG"
+printf 'python3 %s\n' "$*" >> "${CALL_LOG:-/dev/null}"
 case "$*" in
   '--version') echo 'Python 3.12.0' ;;
   '-m pip check') echo 'No broken requirements found.' ;;
@@ -68,7 +74,7 @@ STUB
 
   cat > "$stub_dir/launchctl" <<'STUB'
 #!/usr/bin/env bash
-printf 'launchctl %s\n' "$*" >> "$CALL_LOG"
+printf 'launchctl %s\n' "$*" >> "${CALL_LOG:-/dev/null}"
 STUB
 
   chmod +x "$stub_dir"/*
@@ -155,7 +161,43 @@ test_xml_escaping() {
 
 run_test() {
   local name="$1"
-  if "$name"; then pass "$name"; else fail "$name"; fi
+  CURRENT_TEST_FAILED=0
+  local rc=0
+  "$name" || rc=$?
+  # A test fails if it returns non-zero OR any assert_* raised the failure flag
+  # mid-body (an intermediate assertion). Both paths are now enforcing.
+  if [[ "$rc" -eq 0 && "$CURRENT_TEST_FAILED" -eq 0 ]]; then
+    pass "$name"
+  else
+    fail "$name"
+  fi
+}
+
+# Self-test: proves the harness enforces *intermediate* assertions. It runs a
+# deliberately-broken test (first assertion fails, last statement passes) through
+# the real run_test inside a subshell, so the failure it triggers never touches
+# the real suite's tally. Under the pre-fix harness this reported "ok" with no
+# tally change — the exact bug #64 fixes; under the fixed harness it must report
+# "not ok" and increment FAIL by one. The tally is measured as a delta rather
+# than by resetting PASS/FAIL, which would shadow the globals.
+test_harness_enforces_intermediate_assertions() {
+  local case_dir="$TMP_ROOT/harness_selftest"
+  mkdir -p "$case_dir"
+  printf 'hello world\n' > "$case_dir/probe"
+
+  local fail_before="$FAIL"
+  (
+    # shellcheck disable=SC2329  # invoked indirectly through run_test below
+    _broken_intermediate_assertion() {
+      assert_contains "$case_dir/probe" 'ABSENT_INTERMEDIATE_STRING'  # intermediate: fails
+      assert_contains "$case_dir/probe" 'hello world'                 # last statement: passes
+    }
+    run_test _broken_intermediate_assertion
+    printf 'META_DELTA=%s\n' "$(( FAIL - fail_before ))"
+  ) > "$case_dir/meta_out" 2>&1
+
+  assert_contains "$case_dir/meta_out" 'not ok - _broken_intermediate_assertion'
+  assert_contains "$case_dir/meta_out" 'META_DELTA=1'
 }
 
 test_cleanup_report_mode_no_delete() {
@@ -396,6 +438,7 @@ test_config_default_behavior_all_enabled() {
   assert_contains "$case_dir/calls.log" 'python3 --version'
 }
 
+run_test test_harness_enforces_intermediate_assertions
 run_test test_report_boundary_and_redaction
 run_test test_maintenance_boundary
 run_test test_failed_check_is_not_outdated
