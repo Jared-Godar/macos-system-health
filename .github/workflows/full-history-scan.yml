@@ -40,25 +40,40 @@ jobs:
           echo "Commits reachable from all refs: $(git rev-list --all --count)"
 
       - name: Remove unused third-party Homebrew tap
+        # Still required: this job installs gitleaks through Homebrew (below), so the
+        # tap hygiene that smooths `brew install` remains live. It is only vestigial
+        # if this job stops using Homebrew entirely (Issue #84).
         run: |
           if brew tap | grep -qx 'aws/tap'; then
             brew untap aws/tap
           fi
 
-      - name: Install quality tools
+      - name: Install pinned actionlint and shellcheck
+        # actionlint and shellcheck are pinned from the single shared home,
+        # scripts/install-quality-tools (Issue #84), exactly as lint.yml pins them:
+        # a linter default-check change that turns this scheduled run red with no code
+        # change and no author attached is pure noise, not the scan's mission. gitleaks
+        # is intentionally NOT installed here -- it is floated in the next step.
+        # Invoked through /bin/bash for the same one-interpreter reason (Issue #81).
+        run: /bin/bash scripts/install-quality-tools actionlint shellcheck
+
+      - name: Install gitleaks (unpinned, on purpose)
         run: |
           set -euo pipefail
-          # Defensive external call: brew install pulls from the network
-          # (bottles + the core tap). Retry a bounded number of times with
-          # backoff on failure -- brew install is idempotent, so a retry
-          # after a transient network blip is safe -- and fail with a clear
-          # external-condition message on exhaustion rather than a raw
+          # The weekly scan deliberately FLOATS gitleaks: its whole purpose is catching
+          # newly published Gitleaks rules and secrets predating the current ruleset, so
+          # pinning gitleaks here would defeat the point (Issue #84). That is why this
+          # job still uses Homebrew -- and why the tap-cleanup step above stays.
+          # Defensive external call: brew install pulls from the network (bottles + the
+          # core tap). Retry a bounded number of times with backoff -- brew install is
+          # idempotent, so a retry after a transient network blip is safe -- and fail
+          # with a clear external-condition message on exhaustion rather than a raw
           # brew error.
           attempt=1
           max_attempts=4
-          until brew install actionlint shellcheck gitleaks; do
+          until brew install gitleaks; do
             if (( attempt >= max_attempts )); then
-              echo "::error::Could not install actionlint/shellcheck/gitleaks via Homebrew after ${max_attempts} attempts — this is an external/connectivity condition (Homebrew bottle or tap fetch), not a repository or setup defect. Re-run the workflow; if it persists, check Homebrew's status." >&2
+              echo "::error::Could not install gitleaks via Homebrew after ${max_attempts} attempts — this is an external/connectivity condition (Homebrew bottle or tap fetch), not a repository or setup defect. Re-run the workflow; if it persists, check Homebrew's status." >&2
               exit 1
             fi
             wait=$(( attempt * 15 ))

@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Install a named SUBSET of the pinned quality toolchain, each verified by SHA-256
+# BEFORE anything reaches PATH. This script is the single home for the pinned
+# versions and their checksums (Issue #84): both .github/workflows/lint.yml and
+# .github/workflows/full-history-scan.yml call it, so a version bump is two edits
+# (URL + sha) in exactly one file.
+#
+# Usage (CI): /bin/bash scripts/install-quality-tools <tool> [<tool>...]
+#   <tool> is one of: actionlint shellcheck gitleaks
+#   - lint.yml pins all three.
+#   - full-history-scan.yml pins actionlint + shellcheck and deliberately FLOATS
+#     gitleaks via Homebrew (the weekly scan exists to catch newly published rules),
+#     so it passes only the two tools it pins.
+#
+# CI-only: relies on $RUNNER_TEMP (writable scratch) and $GITHUB_PATH (the file
+# GitHub reads to extend PATH for later steps). macos-15 runners are arm64, so the
+# pinned assets are darwin_arm64 builds. Owner, cadence, and the bump procedure are
+# documented in AGENTS.md, "CI toolchain version contract (Issue #81)".
+
+if [ "$#" -eq 0 ]; then
+  printf '::error::install-quality-tools: name at least one tool to install (actionlint shellcheck gitleaks).\n' >&2
+  exit 64
+fi
+
+# Fail with a clear message if run outside the CI environment it depends on, rather
+# than tripping over an unset variable mid-install. The assignments also make these
+# externally-provided names explicit to ShellCheck.
+RUNNER_TEMP="${RUNNER_TEMP:?install-quality-tools runs in CI: RUNNER_TEMP must be set}"
+GITHUB_PATH="${GITHUB_PATH:?install-quality-tools runs in CI: GITHUB_PATH must be set}"
+
+bindir="$RUNNER_TEMP/pinned-tools"
+mkdir -p "$bindir"
+
+resolve_pin() {
+  # $1 tool -> sets url/sha/binpath/strip as globals (Bash 3.2 has no assoc arrays).
+  # To BUMP a tool: edit its version in the URL and replace its sha — the only two
+  # edits. tar --strip-components handles each archive's layout: 1 drops shellcheck's
+  # versioned top directory; 0 for actionlint/gitleaks (binary sits at the archive
+  # root). A release that changes its layout also changes its strip value here,
+  # surfacing as a failing extract at bump time.
+  case "$1" in
+    actionlint)
+      url="https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_darwin_arm64.tar.gz"
+      sha="aba9ced2dee8d27fecca3dc7feb1a7f9a52caefa1eb46f3271ea66b6e0e6953f"
+      binpath="actionlint"; strip=0 ;;
+    shellcheck)
+      url="https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.darwin.aarch64.tar.xz"
+      sha="56affdd8de5527894dca6dc3d7e0a99a873b0f004d7aabc30ae407d3f48b0a79"
+      binpath="shellcheck"; strip=1 ;;
+    gitleaks)
+      url="https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_darwin_arm64.tar.gz"
+      sha="b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5"
+      binpath="gitleaks"; strip=0 ;;
+    *)
+      printf '::error::install-quality-tools: unknown tool %s (expected actionlint, shellcheck, or gitleaks).\n' "$1" >&2
+      exit 2 ;;
+  esac
+}
+
+fetch() {
+  # Bounded retry w/ exponential backoff on TRANSIENT failures — including a curl
+  # --connect-timeout/--max-time expiry on a stalled connection, which returns
+  # non-zero and is retried rather than hanging to the job timeout; fail fast on
+  # PERMANENT ones (bad URL / auth); on exhaustion a clear connectivity message,
+  # never a bare curl error (AGENTS.md: defensive external calls). $1 url  $2 out.
+  local url="$1" out="$2"
+  local attempt=1 max=4 delay=2 code rc
+  while :; do
+    set +e
+    code="$(curl -sSL --proto '=https' --proto-redir '=https' --max-redirs 5 --connect-timeout 20 --max-time 300 -o "$out" -w '%{http_code}' "$url")"
+    rc=$?
+    set -e
+    code="${code:-000}"
+    if [ "$rc" -eq 0 ] && [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
+      return 0
+    fi
+    case "$code" in
+      400|401|404|405|410)
+        printf '::error::Download failed permanently for %s (HTTP %s): a bad or unauthorized pinned URL, not a transient network fault. Fix the pinned URL/version.\n' "$url" "$code"
+        return 1 ;;
+    esac
+    if [ "$attempt" -ge "$max" ]; then
+      printf '::error::Could not download %s after %s attempts (last HTTP=%s curl=%s). This is an external/connectivity condition reaching the GitHub release CDN, not a repository or setup defect; an HTTP 000 right after a pin edit also means a wrong host in the URL. Re-run the job; if it persists, check https://www.githubstatus.com.\n' "$url" "$max" "$code" "$rc"
+      return 1
+    fi
+    printf 'transient fetch failure for %s (HTTP=%s curl=%s); retry %s of %s in %ss\n' "$url" "$code" "$rc" "$attempt" "$((max - 1))" "$delay" >&2
+    sleep "$delay"
+    attempt="$((attempt + 1))"
+    delay="$((delay * 2))"
+  done
+}
+
+install_pinned() {
+  # $1 name  $2 url  $3 sha256  $4 binary path within the archive  $5 tar --strip-components
+  local name="$1" url="$2" sha="$3" binpath="$4" strip="$5"
+  local archive="$RUNNER_TEMP/$name.archive"
+  local dest="$RUNNER_TEMP/$name.extract"
+  if ! fetch "$url" "$archive"; then exit 1; fi
+  # Integrity gate BEFORE anything reaches PATH. A checksum mismatch is a PERMANENT
+  # error (asset changed / tampered) and is never retried.
+  if ! printf '%s  %s\n' "$sha" "$archive" | shasum -a 256 -c - >/dev/null 2>&1; then
+    printf '::error::Checksum MISMATCH for %s (%s): expected sha256 %s. This is a PERMANENT integrity failure and is not retried. If the version was bumped intentionally, recompute and update the pin.\n' "$name" "$url" "$sha"
+    exit 1
+  fi
+  mkdir -p "$dest"
+  tar xf "$archive" -C "$dest" --strip-components="$strip"
+  install -m 0755 "$dest/$binpath" "$bindir/$name"
+}
+
+verify_version() {
+  # Fail loudly here, not mid-gate, if a pin did not land or the arch is wrong.
+  # gitleaks prints its version via `version` (no dashes); the others use --version.
+  case "$1" in
+    gitleaks) "$bindir/gitleaks" version ;;
+    *)        "$bindir/$1" --version ;;
+  esac
+}
+
+for tool in "$@"; do
+  resolve_pin "$tool"
+  install_pinned "$tool" "$url" "$sha" "$binpath" "$strip"
+done
+
+# Only now — every requested tool fetched and checksum-verified — put the pinned
+# tools on PATH, where scripts/check's require() resolves them in the next step.
+echo "$bindir" >> "$GITHUB_PATH"
+
+for tool in "$@"; do
+  verify_version "$tool"
+done

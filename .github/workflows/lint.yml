@@ -13,85 +13,13 @@ jobs:
         with:
           fetch-depth: 0
       - name: Install pinned quality tools
-        run: |
-          set -euo pipefail
-          # Pin the quality toolchain to explicit released versions verified by SHA-256,
-          # so a Homebrew rolling upgrade can never turn this gate red with no code change
-          # (Issue #81). macos-15 runners are arm64 -> darwin_arm64 builds. A stale checksum
-          # fails this step loudly rather than drifting. Versions, owner, cadence, and the
-          # bump procedure are the single source of truth in AGENTS.md, "Local environment".
-          al_url="https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_darwin_arm64.tar.gz"
-          al_sha="aba9ced2dee8d27fecca3dc7feb1a7f9a52caefa1eb46f3271ea66b6e0e6953f"
-          sc_url="https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.darwin.aarch64.tar.xz"
-          sc_sha="56affdd8de5527894dca6dc3d7e0a99a873b0f004d7aabc30ae407d3f48b0a79"
-          gl_url="https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_darwin_arm64.tar.gz"
-          gl_sha="b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5"
-          bindir="$RUNNER_TEMP/pinned-tools"
-          mkdir -p "$bindir"
-
-          fetch() {
-            # Bounded retry w/ exponential backoff on TRANSIENT failures — including a curl
-            # --connect-timeout/--max-time expiry on a stalled connection, which returns
-            # non-zero and is retried rather than hanging to the job timeout; fail fast on
-            # PERMANENT ones (bad URL / auth); on exhaustion a clear connectivity message,
-            # never a bare curl error (AGENTS.md: defensive external calls). $1 url  $2 out.
-            local url="$1" out="$2"
-            local attempt=1 max=4 delay=2 code rc
-            while :; do
-              set +e
-              code="$(curl -sSL --proto '=https' --proto-redir '=https' --max-redirs 5 --connect-timeout 20 --max-time 300 -o "$out" -w '%{http_code}' "$url")"
-              rc=$?
-              set -e
-              code="${code:-000}"
-              if [ "$rc" -eq 0 ] && [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
-                return 0
-              fi
-              case "$code" in
-                400|401|404|405|410)
-                  printf '::error::Download failed permanently for %s (HTTP %s): a bad or unauthorized pinned URL, not a transient network fault. Fix the pinned URL/version.\n' "$url" "$code"
-                  return 1 ;;
-              esac
-              if [ "$attempt" -ge "$max" ]; then
-                printf '::error::Could not download %s after %s attempts (last HTTP=%s curl=%s). This is an external/connectivity condition reaching the GitHub release CDN, not a repository or setup defect; an HTTP 000 right after a pin edit also means a wrong host in the URL. Re-run the job; if it persists, check https://www.githubstatus.com.\n' "$url" "$max" "$code" "$rc"
-                return 1
-              fi
-              printf 'transient fetch failure for %s (HTTP=%s curl=%s); retry %s of %s in %ss\n' "$url" "$code" "$rc" "$attempt" "$((max - 1))" "$delay" >&2
-              sleep "$delay"
-              attempt="$((attempt + 1))"
-              delay="$((delay * 2))"
-            done
-          }
-
-          install_pinned() {
-            # $1 name  $2 url  $3 sha256  $4 binary path within the archive  $5 tar --strip-components
-            local name="$1" url="$2" sha="$3" binpath="$4" strip="$5"
-            local archive="$RUNNER_TEMP/$name.archive"
-            local dest="$RUNNER_TEMP/$name.extract"
-            if ! fetch "$url" "$archive"; then exit 1; fi
-            # Integrity gate BEFORE anything reaches PATH. A checksum mismatch is a
-            # PERMANENT error (asset changed / tampered) and is never retried.
-            if ! printf '%s  %s\n' "$sha" "$archive" | shasum -a 256 -c - >/dev/null 2>&1; then
-              printf '::error::Checksum MISMATCH for %s (%s): expected sha256 %s. This is a PERMANENT integrity failure and is not retried. If the version was bumped intentionally, recompute and update the pin.\n' "$name" "$url" "$sha"
-              exit 1
-            fi
-            mkdir -p "$dest"
-            tar xf "$archive" -C "$dest" --strip-components="$strip"
-            install -m 0755 "$dest/$binpath" "$bindir/$name"
-          }
-
-          # $5 = tar --strip-components: 0 for archives with the binary at the root
-          # (actionlint, gitleaks), 1 to drop shellcheck's versioned top directory so a
-          # version bump stays URL+sha only, with no versioned extraction path to also edit.
-          install_pinned actionlint "$al_url" "$al_sha" actionlint 0
-          install_pinned shellcheck "$sc_url" "$sc_sha" shellcheck 1
-          install_pinned gitleaks   "$gl_url" "$gl_sha" gitleaks   0
-          # Only now — every checksum verified — put the pinned tools on PATH, where
-          # scripts/check's require() resolves them in the next step.
-          echo "$bindir" >> "$GITHUB_PATH"
-          # Fail loudly here, not mid-gate, if a pin did not land or the arch is wrong.
-          "$bindir/actionlint" --version
-          "$bindir/shellcheck" --version
-          "$bindir/gitleaks" version
+        # The pinned versions and their SHA-256s now live in exactly one home,
+        # scripts/install-quality-tools, shared with the weekly full-history-scan
+        # (Issue #84). Invoked through /bin/bash for the same one-interpreter reason
+        # the gate itself is (Issue #81); the script fetches each darwin_arm64 asset,
+        # verifies its checksum before anything reaches PATH, and appends the pinned
+        # bindir to $GITHUB_PATH for the gate step below.
+        run: /bin/bash scripts/install-quality-tools actionlint shellcheck gitleaks
       - name: Assert the gate runs under the targeted Bash 3.2
         run: |
           set -euo pipefail

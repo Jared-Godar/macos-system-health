@@ -15,7 +15,44 @@ require() {
   }
 }
 
-SHELL_FILES=(bin/system-health bin/install-schedule bin/configure-email scripts/check scripts/install-hooks lib/cleanup.sh tests/smoke.sh .githooks/pre-commit .githooks/pre-push)
+# Files a user is expected to run directly — MUST be committed executable (100755),
+# because what is committed is what a fresh clone gets. The committed-mode check
+# below reads the index (git ls-files -s), never the working tree (#83). Keep this
+# list explicit: every tracked shell file carries a shebang, so a shebang cannot
+# discriminate the one sourced file (lib/cleanup.sh) that is correctly 100644.
+EXECUTABLE_FILES=(bin/system-health bin/install-schedule bin/configure-email scripts/check scripts/install-hooks scripts/install-quality-tools tests/smoke.sh .githooks/pre-commit .githooks/pre-push)
+# Sourced, never executed — correctly non-executable (100644).
+SOURCED_FILES=(lib/cleanup.sh)
+# The bash -n and ShellCheck passes lint both sets; the mode check covers only the
+# executables. One definition of each, consumed as their union — no duplication.
+SHELL_FILES=("${EXECUTABLE_FILES[@]}" "${SOURCED_FILES[@]}")
+
+assert_committed_modes() {
+  # Fail fast if any file a user runs directly is committed non-executable. Reads the
+  # INDEX (git ls-files -s), so it behaves identically under --all and --staged, a
+  # `git update-index --chmod=+x` fix is honored without a commit, and the pre-commit
+  # hook catches a mode regression at commit time (#83). Runs before the expensive
+  # passes so the signal is immediate.
+  local file mode failed=0
+  for file in "${EXECUTABLE_FILES[@]}"; do
+    mode="$(git ls-files -s -- "$file" | awk 'NR==1{print $1}')"
+    if [[ -z "$mode" ]]; then
+      printf 'Committed-mode check: expected-executable file is not tracked: %s\n' "$file" >&2
+      failed=1
+    elif [[ "$mode" != 100755 ]]; then
+      printf 'Committed-mode check: %s is committed %s, expected 100755.\n' "$file" "$mode" >&2
+      printf '  Fix: git update-index --chmod=+x %s\n' "$file" >&2
+      failed=1
+    fi
+  done
+  if [[ "$failed" -ne 0 ]]; then
+    printf 'Committed executable-bit check failed (see the fix above); no other checks ran.\n' >&2
+    exit 1
+  fi
+}
+
+printf '%s\n' 'Checking committed executable bits...'
+assert_committed_modes
 
 printf '%s\n' 'Checking staged whitespace errors...'
 git diff --cached --check
