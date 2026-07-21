@@ -19,6 +19,9 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
   are visible, the spec-immutability `PreToolUse` hook moved from gitignored
   `.claude/settings.local.json` into tracked `.claude/settings.json`, and root `CLAUDE.md`
   gained specs-are-immutable-after-handoff as a fourth non-negotiable (#70, #69, #68).
+  A `.gitattributes` rule (`artifacts/** -whitespace`) exempts the now-tracked session
+  artifacts from the whitespace check, since their markdown hard-line-breaks (trailing
+  double-spaces) are intentional and would otherwise trip `git show --check` (#70, #69).
 - Governance: backward-facing audit of closed v1.0 work (`docs/audits/2026-07-21-closed-work-audit.md`)
   — reconstructs each in-scope closed issue's definition-of-done and verifies delivered work with
   pasted command receipts; verdicts (Satisfied/Partial) with follow-up issues #60 (#7 dry-run does
