@@ -22,6 +22,9 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Docs: Architecture Decision Record (ADR 0001) documenting report and maintenance boundaries (#9).
 - Docs: PM workflow & governance documentation in `docs/PM-WORKFLOW.md` — artifact lifecycle, durable contracts, seed prompt pattern, and phase 1 lessons learned.
 - Governance: Goldilocks label schema for GitHub Projects dashboarding and filtering — 28 labels across area, priority, type, effort, status, risk, confidence, and housekeeping categories; complete durable schema in `.github/labels.json` (#45).
+- Per-tool enable/disable controls for Homebrew, Conda, and pip checks via configuration file at `~/.config/system-health/config.yaml` (#11).
+- Configurable command timeout (default: 30 seconds) to prevent scheduled runs from hanging indefinitely; timed-out commands report clear state separate from other failures (#11).
+- Four distinct command execution states: Skipped (tool disabled in config), Timed out (exceeded timeout), Warning (command succeeded with warnings), Failure (command failed) (#11).
 
 ### Changed
 
