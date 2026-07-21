@@ -6,6 +6,38 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ### Added
 
+- Governance: three agent-orchestration failures from 2026-07-21 are answered by
+  standing rules on the surfaces that reach every session, and two artifact-timing
+  collisions with the PR-only workflow are resolved (#76, #85, #92). `AGENTS.md`
+  § Standing commitments gains four agent-safety commitments: **isolate agents; do
+  not instruct them** (contain a subagent/workflow structurally with a `/tmp` clone or
+  `isolation: 'worktree'`, never a prompt instruction; a clone suffices for review;
+  stop-and-verify the surface if agents are already live; agent-authored commits carry
+  a `Co-Authored-By: Claude <model>` trailer so a stray one is attributable — enforcing
+  that is #89), **bounded fan-out, or do not launch** (integer ceiling + code-enforced
+  cap + countable denominator, all known before launch; the agent type — not a script's
+  cardinality — decides whether a ceiling exists, since `general-purpose`/`claude` carry
+  the `Agent` tool; an unverifiable ceiling is reported as unbounded; review fleets
+  default to a non-spawning agent type, named with its spawn capability at launch),
+  **commit before launching agents** (including read-only runs), and **isolation must
+  self-verify** (the first agent echoes its absolute working path; an unset target is a
+  hard abort, never a fallback). All four are mirrored verbatim into the root
+  `CLAUDE.md` safety net; both files' hard-coded non-negotiable counts are **deleted
+  rather than bumped** (a number that cannot desync beats one kept in sync by hand), and
+  the `AGENTS.md` enumeration names the four new rules. For #92, the continuity
+  walkthrough's *awaiting-merge* refresh is redefined to **before the final commit on
+  the branch**, so a filled walkthrough — not a blank form — lands on `main`; a
+  deliberately-left-slot convention (`⟨… — resolved post-merge, deliberately left⟩`)
+  distinguishes blank-on-purpose from abandoned, and the rule states the accepted trade
+  (the PR number and CI check context stay unresolved rather than force-pushing a green
+  branch and voiding its required-check receipt). The session-handoff destination
+  contradiction is resolved by widening the PM authoring lane: the PM may now author
+  under `artifacts/session-handoffs/` and `artifacts/walkthroughs/` as well as
+  `artifacts/specs/` — untracked, committed by the next executor PR, `.gitignore`
+  unchanged — so the handoff's named path is reachable without breaking the lane.
+  Deferred and named: #95 (the wider `CLAUDE.md` mirroring gap, deliberately
+  unscheduled), #89 (attribution enforcement), #74 (the independent contract review,
+  unblocked by the fan-out rule and run after it), #93.
 - Governance: "correctly labeled" becomes a checkable property instead of a
   judgment call (#54, #51). `.github/label-policy.json` is now the authoritative,
   machine-readable required-label matrix — AREA, PRIORITY, TYPE, EFFORT, STATUS
