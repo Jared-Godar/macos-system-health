@@ -2,7 +2,6 @@ name: Auto-add PR to Project
 on:
   pull_request:
     types: [opened, reopened]
-  workflow_dispatch:
 
 permissions:
   contents: read
