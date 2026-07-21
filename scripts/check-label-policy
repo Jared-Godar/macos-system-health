@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# check-label-policy — evaluate a label set against the type-aware required-label
+# matrix in .github/label-policy.json (the source of truth for #54/#51).
+#
+# Two entry points, deliberately split so the policy logic is pure and offline:
+#   scripts/check-label-policy --labels "type:feature,area:governance,..."   # pure, no network
+#   scripts/check-label-policy --pr <number> [--repo owner/name]             # thin fetch -> same evaluator
+#
+# The --labels form is what the negative tests exercise; it needs no token and no
+# network. The --pr form fetches the PR's labels (bounded retry, defensive) and
+# feeds the identical evaluator. Bash 3.2 compatible: no associative arrays, no
+# mapfile, no ${var^^} — the set logic lives in jq, not in bash.
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+POLICY_FILE=".github/label-policy.json"
+LABELS_FILE=".github/labels.json"
+
+usage() {
+  cat >&2 <<'USAGE'
+Usage:
+  scripts/check-label-policy --labels "type:feature,area:governance,priority:high,..."
+  scripts/check-label-policy --pr <number> [--repo owner/name]
+
+Evaluates a comma-separated label set (or a pull request's labels) against
+.github/label-policy.json. Exits 0 when the required, type-aware set is present;
+non-zero otherwise, with an itemized message naming each missing category and its
+valid labels.
+USAGE
+}
+
+require() {
+  command -v "$1" >/dev/null 2>&1 || {
+    printf 'Missing required tool: %s\n' "$1" >&2
+    printf 'On macOS, install it with: brew install %s\n' "$1" >&2
+    exit 69
+  }
+}
+
+MODE=""
+LABELS_CSV=""
+PR_NUMBER=""
+REPO=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --labels) MODE="labels"; LABELS_CSV="${2:-}"; shift 2 ;;
+    --pr)     MODE="pr";     PR_NUMBER="${2:-}"; shift 2 ;;
+    --repo)   REPO="${2:-}"; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    *) printf 'Unknown argument: %s\n' "$1" >&2; usage; exit 64 ;;
+  esac
+done
+
+[ -n "$MODE" ] || { usage; exit 64; }
+require jq
+[ -f "$POLICY_FILE" ] || { printf 'Policy file not found: %s\n' "$POLICY_FILE" >&2; exit 66; }
+[ -f "$LABELS_FILE" ] || { printf 'Labels file not found: %s\n' "$LABELS_FILE" >&2; exit 66; }
+
+# Thin, injected I/O: fetch a PR's labels with bounded retry on transient failure.
+fetch_pr_labels() {
+  require gh
+  local pr="$1" attempt max out rc
+  max=3
+  attempt=1
+  while [ "$attempt" -le "$max" ]; do
+    rc=0
+    if [ -n "$REPO" ]; then
+      out="$(gh pr view "$pr" -R "$REPO" --json labels --jq '[.labels[].name] | join(",")' 2>/dev/null)" || rc=$?
+    else
+      out="$(gh pr view "$pr" --json labels --jq '[.labels[].name] | join(",")' 2>/dev/null)" || rc=$?
+    fi
+    if [ "$rc" -eq 0 ]; then
+      printf '%s' "$out"
+      return 0
+    fi
+    if [ "$attempt" -lt "$max" ]; then sleep "$attempt"; fi
+    attempt=$((attempt + 1))
+  done
+  printf 'Could not fetch labels for PR #%s after %d attempts.\n' "$pr" "$max" >&2
+  printf 'This is a network/connectivity or GitHub API condition, not a policy defect.\n' >&2
+  printf 'Retry, or check gh auth status and the PR number.\n' >&2
+  return 75
+}
+
+if [ "$MODE" = "pr" ]; then
+  [ -n "$PR_NUMBER" ] || { printf -- '--pr requires a number\n' >&2; exit 64; }
+  LABELS_CSV="$(fetch_pr_labels "$PR_NUMBER")" || exit $?
+fi
+
+# Evaluate a comma-separated label set. All set membership is computed in jq so the
+# behavior is identical regardless of bash version. Emits tab-tagged lines that the
+# renderer below turns into the failure/success message contract.
+evaluate() {
+  local labels_csv="$1" report
+  report="$(jq -r -n \
+    --slurpfile L "$LABELS_FILE" \
+    --slurpfile P "$POLICY_FILE" \
+    --arg labels "$labels_csv" '
+      ($L[0]) as $lf
+      | ($P[0]) as $pf
+      | ($lf.labels) as $all
+      | ($all | map({key: .name, value: .category}) | from_entries) as $catof
+      | (($all | map(.name)) + (($pf.recognized_unschemed) // []) | unique) as $recognized
+      | ($labels | split(",") | map(sub("^ +"; "")) | map(sub(" +$"; "")) | map(select(length > 0))) as $present
+      | ($present | map($catof[.]) | map(select(. != null)) | unique) as $present_cats
+      | ($pf.always_required) as $always
+      | (($pf.required_for_types) // {}) as $rft
+      | ([ $rft | to_entries[]
+             | select( any(.value[]; . as $t | ($present | index($t)) != null) )
+             | .key ]) as $triggered
+      | (($always + $triggered) | unique) as $required
+      | ([ $required[] | . as $c | select( ($present_cats | index($c)) == null ) ]) as $missing
+      | ([ $present[]  | . as $l | select( ($recognized  | index($l)) == null ) ]) as $drift
+      | ( [ "RESULT\t" + (if ($missing | length) == 0 then "PASS" else "FAIL" end) ]
+          + ( $missing | map( . as $c
+                | "MISSING\t" + $c + "\t"
+                  + (($all | map(select(.category == $c) | .name)) | join(", ")) ) )
+          + ( $drift | map( "DRIFT\t" + . ) )
+          + [ "SATISFIED\t" + (($required | map( . as $c | select( ($missing | index($c)) == null ))) | join(", ")) ]
+        )
+      | .[]
+    ')" || {
+    printf 'Failed to evaluate labels: is %s valid JSON, and is jq working?\n' "$POLICY_FILE" >&2
+    exit 70
+  }
+
+  local pass_fail="FAIL" satisfied="" missing_out="" drift_out="" missing_count=0
+  local tag f2 f3
+  while IFS="$(printf '\t')" read -r tag f2 f3; do
+    case "$tag" in
+      RESULT)    pass_fail="$f2" ;;
+      MISSING)   missing_count=$((missing_count + 1)); missing_out="${missing_out}  - ${f2}: add one of {${f3}}
+" ;;
+      DRIFT)     drift_out="${drift_out}  - ${f2}
+" ;;
+      SATISFIED) satisfied="$f2" ;;
+    esac
+  done <<EOF
+$report
+EOF
+
+  if [ -n "$drift_out" ]; then
+    printf 'Label-policy notice: label(s) not recognized by .github/labels.json or the policy (tracked in #93); not required, not failing:\n%s' "$drift_out" >&2
+  fi
+
+  if [ "$pass_fail" = "PASS" ]; then
+    printf 'Label policy satisfied. Categories present: %s\n' "$satisfied"
+    return 0
+  fi
+
+  printf 'Label policy NOT satisfied. Missing %d required categor%s:\n%s' \
+    "$missing_count" "$([ "$missing_count" -eq 1 ] && printf 'y' || printf 'ies')" "$missing_out" >&2
+  printf 'Source of truth: %s\n' "$POLICY_FILE" >&2
+  return 1
+}
+
+if evaluate "$LABELS_CSV"; then
+  exit 0
+else
+  exit 1
+fi

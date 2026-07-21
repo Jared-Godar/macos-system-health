@@ -601,5 +601,55 @@ run_test test_json_no_private_paths
 run_test test_json_format_requires_report_mode
 run_test test_json_invalid_format_error
 
+# --- Label-policy gate (#54/#51) -------------------------------------------------
+# These exercise the pure, offline --labels evaluator in scripts/check-label-policy.
+# The load-bearing case is the first: a type:feature set with no risk:* MUST fail —
+# the exact class that slipped through before the gate existed (#51 AC10). The docs
+# counterpart (AC11) and a missing always-required category (AC12) bound the policy
+# on both sides. No network or token is touched; only jq and the two JSON files.
+LABEL_POLICY="$ROOT/scripts/check-label-policy"
+
+test_label_policy_feature_without_risk_fails() {
+  local case_dir="$TMP_ROOT/lp_feature_no_risk" rc=0
+  mkdir -p "$case_dir"
+  "$LABEL_POLICY" --labels "type:feature,area:governance,priority:high,effort:medium,status:ready" \
+    > "$case_dir/output" 2>&1 || rc=$?
+  [[ "$rc" -ne 0 ]] || { printf 'Expected nonzero exit for feature without risk (got %s)\n' "$rc" >&2; CURRENT_TEST_FAILED=1; }
+  assert_contains "$case_dir/output" 'NOT satisfied'
+  assert_contains "$case_dir/output" 'risk'
+}
+
+test_label_policy_docs_without_risk_passes() {
+  local case_dir="$TMP_ROOT/lp_docs_no_risk" rc=0
+  mkdir -p "$case_dir"
+  "$LABEL_POLICY" --labels "type:docs,area:governance,priority:high,effort:medium,status:ready" \
+    > "$case_dir/output" 2>&1 || rc=$?
+  [[ "$rc" -eq 0 ]] || { printf 'Expected zero exit for docs without risk (got %s)\n' "$rc" >&2; CURRENT_TEST_FAILED=1; }
+  assert_contains "$case_dir/output" 'satisfied'
+}
+
+test_label_policy_missing_effort_fails() {
+  local case_dir="$TMP_ROOT/lp_missing_effort" rc=0
+  mkdir -p "$case_dir"
+  "$LABEL_POLICY" --labels "type:feature,area:governance,priority:high,status:ready,risk:high" \
+    > "$case_dir/output" 2>&1 || rc=$?
+  [[ "$rc" -ne 0 ]] || { printf 'Expected nonzero exit for missing effort (got %s)\n' "$rc" >&2; CURRENT_TEST_FAILED=1; }
+  assert_contains "$case_dir/output" 'effort'
+}
+
+test_label_policy_full_feature_set_passes() {
+  local case_dir="$TMP_ROOT/lp_full_feature" rc=0
+  mkdir -p "$case_dir"
+  "$LABEL_POLICY" --labels "type:feature,area:governance,priority:high,effort:medium,status:ready,risk:high" \
+    > "$case_dir/output" 2>&1 || rc=$?
+  [[ "$rc" -eq 0 ]] || { printf 'Expected zero exit for full feature set (got %s)\n' "$rc" >&2; CURRENT_TEST_FAILED=1; }
+  assert_contains "$case_dir/output" 'Categories present'
+}
+
+run_test test_label_policy_feature_without_risk_fails
+run_test test_label_policy_docs_without_risk_passes
+run_test test_label_policy_missing_effort_fails
+run_test test_label_policy_full_feature_set_passes
+
 printf '%s passed; %s failed\n' "$PASS" "$FAIL"
 (( FAIL == 0 ))
