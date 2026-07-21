@@ -7,7 +7,12 @@
 .Trashes
 
 # Editors and IDEs
-.vscode/
+# `.vscode/*` (not `.vscode/`) so the negation below can re-include one file —
+# git will not descend into a directory excluded by a trailing-slash pattern.
+.vscode/*
+# Tracked exception: the repo ships one deliberate, shared VS Code setting
+# (interpreter fix + Bash/Markdown hygiene, see CONTRIBUTING.md) — Issue #80.
+!.vscode/settings.json
 .idea/
 *.code-workspace
 *.swp

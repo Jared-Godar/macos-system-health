@@ -87,6 +87,32 @@ with semantic versioning. Add a bullet under the appropriate `### Added`,
 section of [CHANGELOG.md](CHANGELOG.md) in the same pull request as your change,
 unless the change is trivial enough not to warrant one (say so in the PR).
 
+## Editor settings
+
+The repo tracks one file of shared VS Code settings, `.vscode/settings.json`
+(the rest of `.vscode/` stays gitignored for personal editor state — see the
+`!.vscode/settings.json` negation in `.gitignore`). It exists to stop the
+Python extension from warning about a `.venv` interpreter this Bash-only repo
+never has, plus a small set of settings evidenced by the repo's own tooling:
+
+- `python.defaultInterpreterPath: "python3"` and
+  `python.terminal.activateEnvironment: false` stop the interpreter hunt
+  without hardcoding a machine-specific path — `"python3"` resolves via `PATH`,
+  mirroring `bin/system-health`'s own `command -v python3` check.
+- `files.associations` maps the seven extensionless Bash scripts (the same
+  `SHELL_FILES` set `scripts/check` lints) to `shellscript`, so ShellCheck
+  integration and syntax highlighting engage without a shebang-sniff.
+- `"[markdown]": { "files.trimTrailingWhitespace": false }` pairs with
+  `.gitattributes`' `artifacts/** -whitespace`: several tracked files under
+  `artifacts/` rely on Markdown hard line breaks (trailing double spaces), and
+  an editor that trims on save would silently break their rendering. **Do not
+  remove either half without the other** — they exist together to protect the
+  same tracked content.
+- `files.eol: "\n"` keeps this Unix-only, Bash-tooled repo free of CRLF, which
+  would trip the whitespace gate.
+
+Nothing else is shipped here — no formatter, linter, theme, or ruler settings.
+
 ## Labels & Issue Classification
 
 Issues are labeled to enable filtering, dashboarding, and workflow tracking in
