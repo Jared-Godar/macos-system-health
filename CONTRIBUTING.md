@@ -92,10 +92,13 @@ unless the change is trivial enough not to warrant one (say so in the PR).
    asks you to link the related issue, summarize the changes, confirm the safety
    and privacy checklist, and record the validation commands you ran — do not
    paste private report contents.
-5. Wait for the `quality` CI workflow to pass.
-6. Changes land on `main` by squash merge; the squash commit references the pull
+5. Verify project membership. Every pull request that links a tracked issue must
+   be added to the "macOS System Health Roadmap" project (see "Project Tracking"
+   below).
+6. Wait for the `quality` CI workflow to pass.
+7. Changes land on `main` by squash merge; the squash commit references the pull
    request number (for example, `Add community contribution templates (#15)`).
-7. After merge, an agent-driven session performs cleanup without waiting to be
+8. After merge, an agent-driven session performs cleanup without waiting to be
    asked: pull `main` locally (fast-forward), delete the merged local topic
    branch (and the remote branch, if GitHub's auto-delete-on-merge didn't
    already remove it), confirm the closed issue carries the labels and
@@ -103,6 +106,23 @@ unless the change is trivial enough not to warrant one (say so in the PR).
    thread — produce a short handoff extract (what merged, issue/PR numbers,
    what's next) back to that thread. This is a standing contract, not a
    one-off ask.
+
+## Project Tracking
+
+Every pull request that links a tracked issue must be added to the
+"macOS System Health Roadmap" project.
+
+- Project membership is **automatically verified** by a GitHub Actions
+  workflow that runs when the PR is opened.
+- If automation fails (rare), manually add the PR to the project before merge.
+- Verify both the linked issue(s) and the PR have consistent status
+  (e.g., both "Todo" or both "In Progress").
+
+**Verification checklist:**
+
+- [ ] PR links an issue using `Fixes #N` syntax
+- [ ] Linked issue is in the "macOS System Health Roadmap" project
+- [ ] PR has been added to the project (check PR details sidebar)
 
 Open issues with the [bug report](.github/ISSUE_TEMPLATE/bug_report.yml) or
 [feature request](.github/ISSUE_TEMPLATE/feature_request.yml) templates. Blank
